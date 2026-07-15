@@ -600,3 +600,13 @@ This log records meaningful architectural, product, scope, and source-control de
 ## DEC-0059 - Two-column gameplay HUD alignment
 
 - The gameplay HUD uses two aligned rows: Level above Pause in the first column, Star progress above Mission in the middle column, and Score above Shots in the right column. This keeps related information vertically grouped with consistent mobile padding.
+
+## DEC-0060 - Phase 16 presentation ownership and bounded motion
+
+- **Date:** 2026-07-15
+- **Status:** Implemented; owner review pending before Phase 17
+- Phase 16 is presentation-only. `GameplayPresentationTimeline` consumes accepted shots, authoritative projectile positions, wall contacts, turn results, matched descriptors, floating descriptors, score threshold crossings, and terminal state without deciding gameplay outcomes.
+- Normal shots remain calm. Match, large-match, and floating-drop intensity scales through deterministic effect counts, brief pulses, bounded same-color particles, and accelerated falling copies. No camera shake, audio, WebGL, DOM particles, or balance changes were introduced.
+- Presentation state uses delta-time, a 320-particle pool, eight-sample projectile trail, forty-dot trajectory cap, bounded effects/falling collections, and reset-safe level boundaries. Pause freezes the presentation clock; reduced motion shortens entrance, removes drift, suppresses most particles, and disables trajectory shimmer.
+- Score count-up, mission pulses, star threshold sparks, and 240ms terminal breathing delay are display-only. Progression and mission authorities remain unchanged.
+- Home animation reuses only its six existing ambient bubbles, two existing glow fields, and existing sparkle layer. Their deterministic 18-46 second drift profiles use pointer-events none and cannot affect map virtualization, scrolling, or navigation. Audio remains deferred.

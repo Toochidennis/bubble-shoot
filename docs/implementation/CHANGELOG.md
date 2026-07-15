@@ -2,6 +2,33 @@
 
 All notable implementation and project-control changes are recorded here. Blueprint overrides must also be documented in `DECISIONS.md`.
 
+## 2026-07-15 - Phase 16 presentation and living-space polish
+
+### Added
+
+- `GameplayPresentationTimeline` with frame-time advancement, deterministic shooter/trail/wall/ceiling/snap/match/floating/star feedback, bounded particles, falling copies, board entrance, pause freeze, reset clearing, and reduced-motion behavior.
+- Score count-up, mission-progress pulse, star-threshold pulse, and a short terminal transition delay while preserving immediate authoritative state.
+- Deterministic Home ambient metadata/tests and slow depth-layer motion for the existing six bubbles, two glows, and sparkle field.
+- Focused Phase 16 tests covering entrance gating, pause/resume, frame-rate independence, bounded queues, authoritative match/floating copies, reset clearing, and Home motion metadata.
+
+### Changed
+
+- Gameplay Canvas now renders presentation trails, particles, falling copies, rail pulse, trajectory shimmer, board entrance, and restrained shooter recoil around unchanged Phase 15 geometry and rules.
+- Home ambient bubbles use long deterministic drift profiles; reduced motion disables drift while keeping the approved background composition.
+- The gameplay mission hub now keeps two objectives visible: chips sit side-by-side when space allows and wrap into a controlled two-line HUD area on narrow mobile widths.
+- Phase tracker and project status now record Phase 16 complete and Phase 17 pending owner review.
+
+### Verified
+
+- Typecheck and lint passed with zero diagnostics.
+- 39 test files and 211 tests passed.
+- Production build passed: 306.99 kB JS / 93.56 kB gzip and 19.79 kB CSS / 5.53 kB gzip.
+- Installed-Chrome fallback smoke at 430x784 rendered Home, Level 1 entrance, and a real shot with no gameplay console errors; the only console warning was the existing missing static resource (404).
+
+### Scope confirmation
+
+- No Phase 17 work started. No audio, camera shake, WebGL, new assets, balance change, geometry change, progression change, or gameplay-rule change was introduced.
+
 ## 2026-07-14 - Phase 15 dense-board and jewel-color correction
 
 ### Changed

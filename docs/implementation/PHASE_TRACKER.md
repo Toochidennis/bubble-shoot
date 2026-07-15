@@ -152,16 +152,16 @@ Only one phase may be in progress at a time. A completed phase requires implemen
 - **Acceptance criteria:** Gameplay matches the approved mood, depth, hierarchy, and readability; rendering is code-first and responsive; generic icons are restyled; unsupported booster behavior is not activated; core gameplay state stays engine-authoritative.
 - **Dependencies:** Phase 14 completed and approved.
 - **Report file:** `docs/implementation/reports/PHASE_15_REPORT.md`
-- **Notes:** Completed on 2026-07-15 and corrected again after targeted ceiling/topology/presentation, visual-depth, projectile/transition, critical snap, generated-level presentation/mission-safety, dense-board/color, and reference-video review: type checking, linting, 204 automated tests, a 1,000-ID deterministic content audit, production build, interactive Chrome mobile play, and Phase 16+ scope audit passed. The accepted snap resolver is unchanged. Current geometry is an 11/10-column, 19-row (200-cell) authoritative board with a 10-18px responsive radius; curated Levels 1-15 use 59-129 dense round-bubble boards, and generated Levels 16-10000 use version-5 bands of 59-200 bubbles, 92-100% filled ceiling-down board regions, ten deterministic color compositions for shape illusion, jewel-toned circular visual families, post-board mission feasibility, and an empty-board/incomplete-mission diagnostic. Must follow the video and `approved-gameplay-ui.png` as direction, not as required raster backgrounds or rigid pixel clones. Project-owner gameplay approval is still required before Phase 16.
+- **Notes:** Completed and approved on 2026-07-15 after targeted ceiling/topology/presentation, visual-depth, projectile/transition, critical snap, generated-level presentation/mission-safety, dense-board/color, and reference-video review: type checking, linting, 204 automated tests, a 1,000-ID deterministic content audit, production build, interactive Chrome mobile play, and Phase 16+ scope audit passed. The accepted snap resolver is unchanged. Current geometry is an 11/10-column, 19-row (200-cell) authoritative board with a 10-18px responsive radius; curated Levels 1-15 use 59-129 dense round-bubble boards, and generated Levels 16-10000 use version-5 bands of 59-200 bubbles, 92-100% filled ceiling-down board regions, ten deterministic color compositions for shape illusion, jewel-toned circular visual families, post-board mission feasibility, and an empty-board/incomplete-mission diagnostic. Must follow the video and `approved-gameplay-ui.png` as direction, not as required raster backgrounds or rigid pixel clones.
 
 ## Phase 16 - Animation/illusion polish
 
-- **Status:** `[ ]` Pending
+- **Status:** `[x]` Completed and verified; owner review required before Phase 17
 - **Scope:** Layered parallax, ambient motion, connected screen transitions, path shimmer, current-level emphasis, shooter rotation/recoil, particles, restrained camera response, and reduced-motion behavior.
 - **Acceptance criteria:** Motion communicates state and depth; gameplay feedback remains readable; reduced motion is respected; ambient work throttles when hidden/paused; input is not blocked beyond engine needs; performance remains within target.
 - **Dependencies:** Phase 15 completed and approved.
 - **Report file:** `docs/implementation/reports/PHASE_16_REPORT.md`
-- **Notes:** Pending.
+- **Notes:** Completed on 2026-07-15 after adding the bounded Canvas presentation timeline, deterministic shooter/trail/wall/ceiling/snap/match/floating/star feedback, score count-up, mission pulses, terminal breathing delay, reduced-motion handling, and slow deterministic Home ambient motion. Typecheck, lint, 39 test files/211 tests, production build, and 430x784 Chrome fallback smoke passed. Phase 17 has not started.
 
 ## Phase 17 - QA + first hosted build
 

@@ -1,22 +1,22 @@
 # Project Status
 
-**Status date:** 2026-07-14
+**Status date:** 2026-07-15
 
 ## Current phase
 
-Phase 15 - Gameplay visual integration: `[x]` Completed and verified with targeted ceiling, composition, density, topology, and input corrections; awaiting explicit owner visual/game-feel review before Phase 16.
+Phase 16 - Animation, game-feel, and living-space background polish: `[x]` Completed and verified; awaiting owner review before Phase 17.
 
 ## Last completed phase
 
-Phase 15 - Gameplay visual integration.
+Phase 16 - Animation, game-feel, and living-space background polish.
 
 ## Next pending phase
 
-Phase 16 - Animation/illusion polish. It must not begin until Phase 15 is completed and approved.
+Phase 17 - QA + first hosted build. It must not begin until Phase 16 is reviewed and approved.
 
 ## Approved work
 
-- No new phase is approved. The Phase 15 dense-board, generated-count, and jewel-color correction is implemented and awaiting project-owner gameplay/visual review.
+- Phase 16 presentation polish is implemented around the approved Phase 15 gameplay authorities. Owner review is required before Phase 17.
 
 ## In-progress work
 
@@ -24,13 +24,13 @@ Phase 16 - Animation/illusion polish. It must not begin until Phase 15 is comple
 
 ## Blocked work
 
-None currently known within Phase 15 scope.
+None currently known within Phase 16 scope.
 
 Phase 19 through Phase 22 cannot receive implementation scope until the project owner or a versioned blueprint revision defines and approves them. They are intentionally deferred rather than treated as active blockers.
 
 ## Deferred work
 
-- Phase 16 through Phase 18 implementation.
+- Phase 17 and Phase 18 implementation.
 - Final visual systems and all post-Phase-15 features.
 - Animation, particles, transitions, and later gameplay polish.
 - Phase 19 through Phase 22, whose scope is not defined in Master Blueprint v1.0.
@@ -58,6 +58,8 @@ Phase 19 through Phase 22 cannot receive implementation scope until the project 
 - Phase 15 critical ceiling-snap correction: the verified `no-valid-candidate` cutoff was removed for ceiling impacts; all empty row-0 cells are ranked and far-edge contacts attach to the nearest legal top-row cell. Direct, wall-bounce, no-match, shot-count, ownership, and BubbleColor lifecycle regressions are covered; Phase 16 remains prohibited.
 - Phase 15 owner correction: the seven-cell upper formation now physically covers supported mobile widths, and exhausted local snap geometry falls back only to the nearest ceiling-connected empty frontier. Interactive Level 6 Chrome play verified a right-edge match followed by a retained non-match; only a completely full board can reject normal placement. Phase 16 remains prohibited.
 - Phase 15 scalable-board correction: the authoritative grid now uses 11/10 alternating columns across 19 rows (200 cells), with a 10-18px radius derived from viewport width and vertical fit. Curated Levels 1-15 use 59-129 dense round-bubble boards; generated version 5 uses 59-200 bubbles, ten deterministic color compositions, and validated missions. Family accents remain inside circular silhouettes and colors use moderated jewel tones. The 1,000-ID sample, mobile Level 1, and full Level 10,000 render passed through owner-authorized Chrome fallback; Phase 16 remains prohibited.
+- Phase 16 presentation correction: the Canvas timeline, score count-up, mission/star pulses, terminal breathing delay, reduced-motion behavior, and Home ambient drift are implemented and verified. The installed-Chrome fallback rendered Home, Level 1 entrance, and a real shot at 430x784; Phase 17 remains pending owner review.
+- The Phase 15 bullets above preserve the historical pre-approval wording for auditability; Phase 15 was subsequently approved, Phase 16 was completed, and only Phase 17 remains gated.
 
 ## Important instructions that must not be violated
 

@@ -5,7 +5,6 @@ import { GameLoop, createBrowserFrameScheduler } from '../game/engine/GameLoop'
 import { getOccupiedBubbleColliders } from '../game/physics/collisionQueries'
 import { DEFAULT_PROJECTILE_CONFIG } from '../game/physics/physicsConfig'
 import type { ImpactType } from '../game/physics/types'
-import type { FallingBubbleVisual, FloatingResolutionResult } from '../game/floating/types'
 import {
   applyCanvasMetrics,
   calculateCanvasMetrics,
@@ -20,6 +19,7 @@ import { ShooterState } from '../game/shooter/ShooterState'
 import { createDefaultShooterConfig } from '../game/shooter/shooterConfig'
 import { AimPointerController } from '../game/shooter/aimPointerController'
 import type { ShooterStateSnapshot } from '../game/shooter/types'
+import { GameplayPresentationTimeline } from '../game/presentation/gameplayPresentationTimeline'
 import { LevelSession } from '../game/levels/LevelSession'
 import { createGameplayLayout } from '../game/layout/gameplayLayout'
 import { GameIcon } from './GameIcon'
@@ -87,10 +87,12 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
   const initialGameplayLayout = createGameplayLayout(initialViewport)
   const gameplayLayoutRef = useRef(initialGameplayLayout)
   const sessionRef = useRef<LevelSession>(new LevelSession(initialLevelId, initialViewport, progression, initialGameplayLayout))
-  const fallingBubblesRef = useRef<FallingBubbleVisual[]>([])
+  const presentationTimelineRef = useRef(new GameplayPresentationTimeline())
   const terminalProjectileRef = useRef<import('../game/physics/types').ProjectileState | null>(null)
-  const fallingAnimationFrameRef = useRef(0)
-  const fallingFrameTimeRef = useRef(0)
+  const presentationAnimationFrameRef = useRef(0)
+  const presentationFrameTimeRef = useRef(0)
+  const startPresentationAnimationRef = useRef<(() => void) | null>(null)
+  const presentationScoreRef = useRef<{ levelId: number; score: number }>({ levelId: initialLevelId, score: 0 })
   const gameLoopRef = useRef<GameLoop | null>(null)
   const aimPointerRef = useRef(new AimPointerController())
   const [metrics, setMetrics] = useState<CanvasMetrics>(INITIAL_METRICS)
@@ -111,6 +113,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     contextRef.current = context
 
     const render = (nextSnapshot: ShooterStateSnapshot) => {
+      if (metricsRef.current.logicalWidth <= 0 || metricsRef.current.logicalHeight <= 0) return
       if (!APP_CONFIG.development.showCanvasDiagnostics) {
         drawGameplayFrame(
           context,
@@ -120,10 +123,11 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
           nextSnapshot,
           getTrajectory(metricsRef.current, nextSnapshot, gameplayLayoutRef.current.projectile.radius, gameplayLayoutRef.current.boardCeilingY),
           sessionRef.current.gameplay.activeProjectile,
-          fallingBubblesRef.current,
+          [],
           {
             visualTheme: getBubbleVisualThemeForLevel(sessionRef.current.activeLevel.id),
             terminalProjectile: terminalProjectileRef.current,
+            presentation: presentationTimelineRef.current.frame(),
           },
         )
         return
@@ -138,48 +142,35 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
         sessionRef.current.gameplay.lastTurnResult?.impact ?? sessionRef.current.gameplay.completedImpact,
         sessionRef.current.gameplay.lastTurnResult?.snap ?? null,
         sessionRef.current.gameplay.lastTurnResult?.match ?? null,
-        fallingBubblesRef.current,
+        [],
       )
     }
     renderFrameRef.current = render
 
-    const animateFalling = (time: number) => {
-      const previousTime = fallingFrameTimeRef.current || time
+    presentationTimelineRef.current.reset(initialLevelId, initialViewport.height)
+    presentationTimelineRef.current.setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    presentationTimelineRef.current.beginBoardEntrance()
+    const animatePresentation = (time: number) => {
+      const previousTime = presentationFrameTimeRef.current || time
       const deltaSeconds = Math.min(Math.max((time - previousTime) / 1000, 0), 0.05)
-      fallingFrameTimeRef.current = time
-      fallingBubblesRef.current = fallingBubblesRef.current
-        .map((falling) => ({
-          ...falling,
-          position: {
-            x: falling.position.x + falling.driftX * deltaSeconds,
-            y: falling.position.y + falling.velocityY * deltaSeconds,
-          },
-          velocityY: falling.velocityY + 420 * deltaSeconds,
-        }))
-        .filter((falling) => falling.position.y < metricsRef.current.logicalHeight + 32)
+      presentationFrameTimeRef.current = time
+      presentationTimelineRef.current.advance(deltaSeconds)
       render(sessionRef.current.gameplay.shooter.snapshot())
-      if (fallingBubblesRef.current.length > 0) {
-        fallingAnimationFrameRef.current = window.requestAnimationFrame(animateFalling)
+      if (!presentationTimelineRef.current.isPaused && presentationTimelineRef.current.hasActiveEffects) {
+        presentationAnimationFrameRef.current = window.requestAnimationFrame(animatePresentation)
       } else {
-        fallingAnimationFrameRef.current = 0
+        presentationAnimationFrameRef.current = 0
+        presentationFrameTimeRef.current = 0
       }
     }
-
-    const startFallingAnimation = (result: FloatingResolutionResult) => {
-      fallingBubblesRef.current = result.removedBubbles.map((removed, index) => ({
-        id: `${removed.coordinate.row}:${removed.coordinate.column}`,
-        bubble: removed.bubble,
-        coordinate: removed.coordinate,
-        position: removed.center,
-        velocityY: 45 + index * 12,
-        driftX: index % 2 === 0 ? -12 : 12,
-      }))
-      window.cancelAnimationFrame(fallingAnimationFrameRef.current)
-      fallingFrameTimeRef.current = 0
-      if (fallingBubblesRef.current.length > 0) {
-        fallingAnimationFrameRef.current = window.requestAnimationFrame(animateFalling)
+    const startPresentationAnimation = () => {
+      if (presentationAnimationFrameRef.current === 0) {
+        presentationFrameTimeRef.current = 0
+        presentationAnimationFrameRef.current = window.requestAnimationFrame(animatePresentation)
       }
     }
+    startPresentationAnimationRef.current = startPresentationAnimation
+    startPresentationAnimation()
 
     const loop = new GameLoop(createBrowserFrameScheduler(), (frame) => {
       const session = sessionRef.current
@@ -197,18 +188,30 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
         return
       }
 
+      presentationTimelineRef.current.recordProjectile(nextResult.projectileStep.projectile)
+      for (const bounce of nextResult.projectileStep.wallBounces) presentationTimelineRef.current.emitWallBounce(bounce, nextResult.projectileStep.projectile.bubble)
+      startPresentationAnimation()
+
       if (nextResult.turn !== null) {
         loop.stop()
         const turn = nextResult.turn
         terminalProjectileRef.current = turn.terminalProjectile
         setFlightStatus(turn.impact === null ? 'ready' : `impact:${turn.impact.type}`)
-        if (turn.floating?.removedAny) {
-          startFallingAnimation(turn.floating)
+        presentationTimelineRef.current.emitTurn(turn, session.gameplay.board.config)
+        startPresentationAnimation()
+      }
+      const presentedSession = session.snapshot()
+      if (presentationScoreRef.current.levelId !== presentedSession.levelId) presentationScoreRef.current = { levelId: presentedSession.levelId, score: 0 }
+      for (const threshold of [presentedSession.starThresholds.one, presentedSession.starThresholds.two, presentedSession.starThresholds.three]) {
+        if (presentationScoreRef.current.score < threshold && presentedSession.currentRunScore >= threshold) {
+          presentationTimelineRef.current.emitStarFeedback(session.gameplay.shooter.snapshot().origin)
+          startPresentationAnimation()
         }
       }
+      presentationScoreRef.current.score = presentedSession.currentRunScore
       setSnapshot(session.gameplay.shooter.snapshot())
-      setSessionSnapshot(session.snapshot())
-      onSessionSnapshot?.(session.snapshot())
+      setSessionSnapshot(presentedSession)
+      onSessionSnapshot?.(presentedSession)
       render(session.gameplay.shooter.snapshot())
     })
     gameLoopRef.current = loop
@@ -225,12 +228,13 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
           APP_CONFIG.canvas.maxDevicePixelRatio,
         )
         applyCanvasMetrics(canvas, context, nextMetrics)
-        sessionRef.current.gameplay.shooter.setViewport({
+      sessionRef.current.gameplay.shooter.setViewport({
           width: nextMetrics.logicalWidth,
           height: nextMetrics.logicalHeight,
           pixelRatio: nextMetrics.pixelRatio,
-        })
-        metricsRef.current = nextMetrics
+      })
+      metricsRef.current = nextMetrics
+      presentationTimelineRef.current.setViewportHeight(nextMetrics.logicalHeight)
         const nextSnapshot = sessionRef.current.gameplay.shooter.snapshot()
         render(nextSnapshot)
         setMetrics(nextMetrics)
@@ -250,13 +254,14 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       window.removeEventListener('orientationchange', resize)
       window.cancelAnimationFrame(resizeFrame)
       loop.stop()
-      window.cancelAnimationFrame(fallingAnimationFrameRef.current)
-      fallingAnimationFrameRef.current = 0
+      window.cancelAnimationFrame(presentationAnimationFrameRef.current)
+      presentationAnimationFrameRef.current = 0
+      startPresentationAnimationRef.current = null
       gameLoopRef.current = null
       contextRef.current = null
       renderFrameRef.current = null
     }
-  }, [onSessionSnapshot])
+  }, [initialLevelId, initialViewport.height, onSessionSnapshot])
 
   useEffect(() => {
     const session = sessionRef.current
@@ -264,6 +269,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       const paused = session.pause()
       if (paused.ok) {
         gameLoopRef.current?.stop()
+        presentationTimelineRef.current.setPaused(true)
         setSessionSnapshot(session.snapshot())
         onSessionSnapshot?.(session.snapshot())
         onPauseStateChange?.(true)
@@ -272,9 +278,11 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     }
     const resumed = session.resume()
     if (resumed.ok) {
+        presentationTimelineRef.current.setPaused(false)
       setSessionSnapshot(session.snapshot())
       onSessionSnapshot?.(session.snapshot())
-      onPauseStateChange?.(false)
+        onPauseStateChange?.(false)
+      startPresentationAnimationRef.current?.()
       if (resumed.state === 'SHOOTING') gameLoopRef.current?.start()
     }
   }, [pauseRequested, onPauseStateChange, onSessionSnapshot])
@@ -307,6 +315,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
   }
 
   const beginAim = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (presentationTimelineRef.current.isInputBlocked) return
     if (!aimPointerRef.current.begin(event.pointerId)) return
     if (!sessionRef.current.updateAim(getPointerPoint(event) ?? sessionRef.current.gameplay.shooter.snapshot().origin)) {
       aimPointerRef.current.cancel(event.pointerId)
@@ -334,21 +343,25 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     }
 
     terminalProjectileRef.current = null
+    presentationTimelineRef.current.emitAcceptedShot(sessionRef.current.gameplay.shooter.snapshot().origin, sessionRef.current.gameplay.shooter.snapshot().currentBubble)
     const nextSnapshot = sessionRef.current.gameplay.shooter.snapshot()
     setSnapshot(nextSnapshot)
     setSessionSnapshot(sessionRef.current.snapshot())
     onSessionSnapshot?.(sessionRef.current.snapshot())
     setFlightStatus('active')
     renderFrameRef.current?.(nextSnapshot)
+    startPresentationAnimationRef.current?.()
     gameLoopRef.current?.start()
   }
 
   const resetLevelView = useCallback((levelId: number) => {
     gameLoopRef.current?.stop()
-    window.cancelAnimationFrame(fallingAnimationFrameRef.current)
-    fallingAnimationFrameRef.current = 0
-    fallingBubblesRef.current = []
+    window.cancelAnimationFrame(presentationAnimationFrameRef.current)
+    presentationAnimationFrameRef.current = 0
+    presentationTimelineRef.current.reset(levelId, metricsRef.current.logicalHeight || initialViewport.height)
+    presentationTimelineRef.current.beginBoardEntrance()
     terminalProjectileRef.current = null
+    presentationScoreRef.current = { levelId, score: 0 }
     const loaded = APP_CONFIG.development.showCanvasDiagnostics
       ? sessionRef.current.loadDevelopmentLevel(levelId)
       : sessionRef.current.loadLevel(levelId)
@@ -360,7 +373,9 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     setSessionSnapshot(sessionRef.current.snapshot())
     onSessionSnapshot?.(sessionRef.current.snapshot())
     setFlightStatus('ready')
-  }, [onSessionSnapshot])
+    presentationFrameTimeRef.current = 0
+    startPresentationAnimationRef.current?.()
+  }, [initialViewport.height, onSessionSnapshot])
 
   const restartLevel = () => {
     resetLevelView(sessionRef.current.activeLevel.id)

@@ -5,20 +5,12 @@ import { MAX_SUPPORTED_LEVEL_ID } from '../game/progression/types'
 import { DEFAULT_MAP_LAYOUT, getMapContentHeight, getMapFocusScrollTop, getMapNodeLayout, getVisibleLevelRange } from '../game/map/mapLayout'
 import { getMapLevelState, getQuickPlayLevel } from '../game/map/progressionView'
 import { GameIcon } from '../components/GameIcon'
+import { HOME_AMBIENT_ELEMENTS } from './homeAmbient'
 
 interface HomeDashboardProps {
   readonly progression: ProgressionRepository
   readonly onLaunchLevel: (levelId: number) => void
 }
-
-const BACKGROUND_BUBBLES = [
-  { left: '5%', top: '18%', size: 88, color: 'violet' },
-  { left: '79%', top: '22%', size: 42, color: 'blue' },
-  { left: '88%', top: '54%', size: 120, color: 'pink' },
-  { left: '12%', top: '72%', size: 58, color: 'cyan' },
-  { left: '70%', top: '80%', size: 68, color: 'purple' },
-  { left: '38%', top: '46%', size: 24, color: 'gold' },
-] as const
 
 function starsFor(levelId: number, progression: ProgressionRepository): number {
   return progression.getRecord(levelId)?.bestStars ?? 0
@@ -68,7 +60,7 @@ export function HomeDashboard({ progression, onLaunchLevel }: HomeDashboardProps
       <div className="dashboard-ambient" aria-hidden="true">
         <span className="ambient-glow ambient-glow--one" />
         <span className="ambient-glow ambient-glow--two" />
-        {BACKGROUND_BUBBLES.map((bubble) => <span key={`${bubble.left}-${bubble.top}`} className={`ambient-bubble ambient-bubble--${bubble.color}`} style={{ left: bubble.left, top: bubble.top, width: bubble.size, height: bubble.size }} />)}
+        {HOME_AMBIENT_ELEMENTS.map((bubble) => <span key={`${bubble.left}-${bubble.top}`} className={`ambient-bubble ambient-bubble--${bubble.color} ambient-bubble--${bubble.depth}`} style={{ left: bubble.left, top: bubble.top, width: bubble.size, height: bubble.size, animationDuration: bubble.duration, animationDelay: bubble.delay }} />)}
       </div>
 
       <header className="dashboard-hud">

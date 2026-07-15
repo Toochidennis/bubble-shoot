@@ -75,12 +75,13 @@ summary {
   background-size: 88px 112px;
   background-position: 12px 28px;
   mask-image: linear-gradient(to bottom, black, transparent 88%);
+  animation: sparkle-breathe 8s ease-in-out infinite alternate;
 }
 
-.ambient-glow { position: absolute; border-radius: 50%; filter: blur(34px); opacity: .5; }
+.ambient-glow { position: absolute; border-radius: 50%; filter: blur(34px); opacity: .5; animation: glow-breathe 18s ease-in-out infinite alternate; }
 .ambient-glow--one { width: 20rem; height: 20rem; top: 23%; left: -8rem; background: #2c42d8; }
 .ambient-glow--two { width: 18rem; height: 18rem; right: -7rem; bottom: 16%; background: #a52ee8; }
-.ambient-bubble { position: absolute; border: 1px solid rgba(180, 194, 255, .2); border-radius: 50%; opacity: .34; filter: blur(.2px); box-shadow: inset 8px 10px 16px rgba(255,255,255,.1), 0 0 22px rgba(101, 122, 255, .2); animation: drift 9s ease-in-out infinite alternate; }
+.ambient-bubble { position: absolute; border: 1px solid rgba(180, 194, 255, .2); border-radius: 50%; opacity: .34; filter: blur(.2px); box-shadow: inset 8px 10px 16px rgba(255,255,255,.1), 0 0 22px rgba(101, 122, 255, .2); animation: drift var(--ambient-duration, 24s) ease-in-out infinite alternate; }
 .ambient-bubble::after { content: ''; position: absolute; width: 20%; height: 12%; top: 17%; left: 22%; border-radius: 50%; background: rgba(255,255,255,.55); filter: blur(2px); transform: rotate(-25deg); }
 .ambient-bubble--violet { background: radial-gradient(circle at 35% 30%, rgba(196,126,255,.55), rgba(91,36,182,.08) 65%); }
 .ambient-bubble--blue { background: radial-gradient(circle at 35% 30%, rgba(95,197,255,.5), rgba(21,66,192,.08) 65%); }
@@ -88,6 +89,9 @@ summary {
 .ambient-bubble--cyan { background: radial-gradient(circle at 35% 30%, rgba(58,238,255,.5), rgba(15,126,188,.08) 65%); }
 .ambient-bubble--purple { background: radial-gradient(circle at 35% 30%, rgba(189,72,255,.5), rgba(89,17,175,.08) 65%); }
 .ambient-bubble--gold { background: radial-gradient(circle at 35% 30%, rgba(255,211,83,.6), rgba(239,115,25,.08) 65%); }
+.ambient-bubble--far { opacity: .2; filter: blur(.45px); }
+.ambient-bubble--mid { opacity: .28; }
+.ambient-bubble--near { opacity: .36; }
 
 .dashboard-hud { position: absolute; z-index: 5; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: calc(env(safe-area-inset-top) + .8rem) 1rem .75rem; border-bottom: 1px solid rgba(133, 135, 255, .2); background: linear-gradient(180deg, rgba(5, 7, 47, .92), rgba(5, 7, 47, .5)); backdrop-filter: blur(16px); }
 .dashboard-brand { display: inline-flex; align-items: center; gap: .42rem; min-width: 0; text-shadow: 0 0 16px rgba(147, 110, 255, .7); }
@@ -144,7 +148,11 @@ summary {
 .foundation-back, .gameplay-home-button { display: inline-flex; align-items: center; gap: .25rem; width: fit-content; border: 1px solid #554cbb; border-radius: .6rem; padding: .35rem .6rem; color: #e4e1ff; background: #171454; cursor: pointer; }
 .gameplay-home-button { margin: .55rem .75rem .65rem; }
 
-@keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(8px, -12px, 0) scale(1.05); } }
+@keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); opacity: .26; } 50% { transform: translate3d(7px, -10px, 0) scale(1.025); opacity: .36; } to { transform: translate3d(-5px, -18px, 0) scale(1.05); opacity: .3; } }
+@keyframes mission-feedback { 0% { transform: scale(1); } 45% { transform: scale(1.045); box-shadow: 0 0 18px rgba(177, 125, 255, .65); } 100% { transform: scale(1); } }
+@keyframes star-feedback { 0% { transform: scale(1); } 45% { transform: scale(1.12); box-shadow: 0 0 18px rgba(255, 194, 64, .75); } 100% { transform: scale(1); } }
+@keyframes glow-breathe { from { opacity: .38; transform: translate3d(0, 0, 0) scale(1); } to { opacity: .58; transform: translate3d(8px, -6px, 0) scale(1.035); } }
+@keyframes sparkle-breathe { from { opacity: .34; } to { opacity: .62; } }
 @keyframes pulse-node { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } }
 
 @media (min-width: 40rem) {
@@ -155,7 +163,7 @@ summary {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ambient-bubble, .level-node--current { animation: none; }
+  .ambient-bubble, .level-node--current, .gameplay-star-track.is-pulsing, .mission-chip.is-pulsing { animation: none; }
   .map-viewport { scroll-behavior: auto; }
 }
 
@@ -310,12 +318,15 @@ summary {
 .gameplay-stat--shots strong { color: #dba9ff; }
 .gameplay-star-track { grid-area: stars; display: flex; justify-self: start; gap: .08rem; padding: .08rem .34rem; border: 1px solid rgba(123, 107, 235, .58); border-radius: 999px; color: #565388; background: rgba(12, 12, 65, .72); box-shadow: 0 4px 10px rgba(0,0,0,.2); font-size: .78rem; line-height: 1; letter-spacing: -.08em; }
 .gameplay-star-track .is-earned { color: #ffd83d; text-shadow: 0 0 8px #ff9b20; }
+.gameplay-star-track.is-pulsing { animation: star-feedback .38s ease-out; }
 .gameplay-mission { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0; pointer-events: none; }
-.gameplay-mission--hub { grid-area: mission; align-items: center; justify-content: flex-start; max-height: 2rem; overflow: hidden; }
+.gameplay-mission--hub { grid-area: mission; align-items: center; align-content: center; justify-content: flex-start; max-height: 3.25rem; overflow: visible; row-gap: .18rem; }
+.gameplay-mission--hub .mission-chip { padding: .28rem .5rem; font-size: .59rem; }
 .mission-chip { display: inline-flex; align-items: center; gap: .45rem; padding: .38rem .62rem; border: 1px solid rgba(148, 132, 255, .58); border-radius: 999px; color: #e5e5ff; background: rgba(19, 18, 87, .72); box-shadow: 0 4px 12px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.15); font-size: .62rem; backdrop-filter: blur(8px); }
 .mission-chip strong { color: #ffdc55; font-size: .65rem; }
 .mission-chip.is-complete { border-color: #9aff85; color: #caffe1; }
 .mission-chip.is-complete strong { color: #a9ff75; }
+.mission-chip.is-pulsing { animation: mission-feedback .28s ease-out; }
 .gameplay-score-rail { position: absolute; z-index: 7; bottom: calc(env(safe-area-inset-bottom) + 1.3rem); left: 1rem; display: flex; gap: .05rem; padding: .55rem .8rem; border: 1px solid rgba(123, 107, 235, .65); border-radius: 1rem; color: #4f4f80; background: rgba(17, 16, 77, .85); box-shadow: 0 8px 20px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.12); font-size: 1.65rem; letter-spacing: -.16em; }
 .gameplay-score-rail .is-earned { color: #ffd83d; text-shadow: 0 0 12px #ff9b20; }
 .gameplay-bubble-hud { position: absolute; z-index: 7; bottom: calc(env(safe-area-inset-bottom) + 1.25rem); left: calc(50% + 2.15rem); display: flex; align-items: end; gap: .6rem; }

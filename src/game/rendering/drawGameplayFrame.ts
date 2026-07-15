@@ -6,6 +6,7 @@ import type { FallingBubbleVisual } from '../floating/types'
 import type { BubbleColor, BubbleDescriptor, ShooterStateSnapshot } from '../shooter/types'
 import type { TrajectoryPreview } from '../shooter/trajectory'
 import { getBubbleVisualVariant, type BubbleVisualTheme } from './bubbleVisualTheme'
+import type { GameplayPresentationFrame } from '../presentation/gameplayPresentationTimeline'
 
 export const BUBBLE_COLOR_STOPS: Readonly<Record<BubbleColor, { readonly base: string; readonly light: string; readonly dark: string; readonly glow: string }>> = Object.freeze({
   blue: { base: '#1456ad', light: '#4b96e4', dark: '#062d69', glow: '#1f5fb6' },
@@ -20,6 +21,7 @@ export interface GameplayRenderOptions {
   readonly visualTheme?: BubbleVisualTheme
   /** Presentation-only hold for a terminal shot that could not be snapped. */
   readonly terminalProjectile?: ProjectileState | null
+  readonly presentation?: GameplayPresentationFrame
 }
 
 export interface GameplayTrajectoryDot {
@@ -98,37 +100,62 @@ export function drawGameplayFrame(
   context.fillStyle = background
   context.fillRect(0, 0, width, height)
   drawAmbient(context, width, height)
-  drawCeilingRail(context, width, boardCeilingY)
+  drawCeilingRail(context, width, boardCeilingY, options.presentation?.railPulse ?? 0)
+
+  drawPresentationTrail(context, options.presentation?.trail ?? [])
 
   for (const cell of board.getOccupiedCells()) if (cell.value !== undefined) {
-    drawBubble(context, cell.center.x, cell.center.y, board.config.bubbleRadius, cell.value, visualTheme, 'board', 1, cell.coordinate)
+    const key = `${cell.coordinate.row}:${cell.coordinate.column}`
+    const effect = options.presentation?.bubbleEffects.find((candidate) => candidate.key === key)
+    const entrance = options.presentation?.entranceProgress ?? 1
+    const entranceAlpha = Math.min(1, Math.max(0, (entrance - cell.coordinate.row * .025) / .32))
+    const entranceOffset = (1 - entranceAlpha) * -6
+    drawBubble(context, cell.center.x, cell.center.y + entranceOffset, board.config.bubbleRadius * (effect?.scale ?? (0.96 + entranceAlpha * .04)), cell.value, visualTheme, 'board', entranceAlpha, cell.coordinate)
+  }
+  for (const effect of options.presentation?.bubbleEffects ?? []) {
+    drawBubble(context, effect.position.x, effect.position.y, board.config.bubbleRadius * effect.scale, effect.bubble, visualTheme, 'projectile', effect.alpha, { row: -4, column: effect.key.length })
   }
   for (const falling of fallingBubbles) {
     drawBubble(context, falling.position.x, falling.position.y, board.config.bubbleRadius * .82, falling.bubble, visualTheme, 'falling', .76, falling.coordinate)
   }
+  for (const falling of options.presentation?.fallingBubbles ?? []) {
+    drawBubble(context, falling.position.x, falling.position.y, board.config.bubbleRadius * .82, falling.bubble, visualTheme, 'falling', .82, falling.coordinate)
+  }
 
-  if (options.showTrajectory !== false && projectile === null) drawTrajectory(context, trajectory, snapshot.currentBubble.color)
+  drawPresentationParticles(context, options.presentation?.particles ?? [])
+
+  if (options.showTrajectory !== false && projectile === null) drawTrajectory(context, trajectory, snapshot.currentBubble.color, options.presentation?.trajectoryPhase ?? 0)
   if (projectile !== null) {
     drawBubble(context, projectile.position.x, projectile.position.y, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length })
   } else if (options.terminalProjectile !== null && options.terminalProjectile !== undefined) {
     drawBubble(context, options.terminalProjectile.position.x, options.terminalProjectile.position.y, options.terminalProjectile.radius, options.terminalProjectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: options.terminalProjectile.id.length })
   }
-  drawShooter(context, snapshot.origin.x, snapshot.origin.y, board.config.bubbleRadius, snapshot.currentBubble, snapshot.aimDirection, visualTheme)
+  drawShooter(context, snapshot.origin.x, snapshot.origin.y, board.config.bubbleRadius, snapshot.currentBubble, snapshot.aimDirection, visualTheme, options.presentation)
 }
 
-function drawCeilingRail(context: CanvasRenderingContext2D, width: number, boardCeilingY: number): void {
+function drawCeilingRail(context: CanvasRenderingContext2D, width: number, boardCeilingY: number, pulse = 0): void {
   const rail = getGameplayCeilingRailModel(width, boardCeilingY)
   context.save()
   context.lineCap = 'round'
   context.setLineDash([18, 10])
   context.shadowColor = 'rgba(166, 133, 255, .58)'
   context.shadowBlur = 10
-  context.strokeStyle = 'rgba(229, 222, 255, .86)'
+  context.strokeStyle = `rgba(229, 222, 255, ${.86 + pulse * .14})`
   context.lineWidth = 2
   context.beginPath()
   context.moveTo(rail.inset, rail.y)
   context.lineTo(Math.max(rail.inset, width - rail.inset), rail.y)
   context.stroke()
+  if (pulse > 0) {
+    context.shadowColor = 'rgba(255, 244, 190, .9)'
+    context.shadowBlur = 12 + pulse * 10
+    context.strokeStyle = `rgba(255, 232, 154, ${pulse * .55})`
+    context.lineWidth = 3
+    context.beginPath()
+    context.moveTo(rail.inset, rail.y)
+    context.lineTo(Math.max(rail.inset, width - rail.inset), rail.y)
+    context.stroke()
+  }
   context.setLineDash([])
   context.shadowBlur = 0
   context.strokeStyle = 'rgba(138, 108, 235, .55)'
@@ -170,14 +197,41 @@ function drawAmbient(context: CanvasRenderingContext2D, width: number, height: n
   context.restore()
 }
 
-function drawTrajectory(context: CanvasRenderingContext2D, trajectory: TrajectoryPreview, color: BubbleColor): void {
+function drawTrajectory(context: CanvasRenderingContext2D, trajectory: TrajectoryPreview, color: BubbleColor, phase = 0): void {
   context.save()
-  for (const dot of getGameplayTrajectoryDots(trajectory, color)) {
+  for (const [index, dot] of getGameplayTrajectoryDots(trajectory, color).entries()) {
       context.fillStyle = dot.color
-      context.globalAlpha = dot.alpha
+      const shimmer = .86 + .14 * Math.sin(phase * 2.1 - index * .42)
+      context.globalAlpha = dot.alpha * shimmer
       context.beginPath()
       context.arc(dot.position.x, dot.position.y, dot.radius, 0, Math.PI * 2)
       context.fill()
+  }
+  context.restore()
+}
+
+function drawPresentationTrail(context: CanvasRenderingContext2D, trail: readonly { readonly position: Point2D; readonly color: BubbleColor; readonly age: number }[]): void {
+  context.save()
+  for (const [index, sample] of trail.entries()) {
+    const alpha = Math.max(0, .42 * (1 - sample.age / .22) * (1 - index / Math.max(1, trail.length)))
+    context.globalAlpha = alpha
+    context.fillStyle = BUBBLE_COLOR_STOPS[sample.color].light
+    context.beginPath()
+    context.arc(sample.position.x, sample.position.y, Math.max(1.5, 3.2 - index * .25), 0, Math.PI * 2)
+    context.fill()
+  }
+  context.restore()
+}
+
+function drawPresentationParticles(context: CanvasRenderingContext2D, particles: readonly { readonly type: string; readonly color: BubbleColor; readonly position: Point2D; readonly age: number; readonly lifetime: number; readonly scale: number }[]): void {
+  context.save()
+  for (const particle of particles) {
+    const life = Math.max(0, 1 - particle.age / particle.lifetime)
+    context.globalAlpha = life * (particle.type === 'DROP_TRAIL' ? .28 : .72)
+    context.fillStyle = BUBBLE_COLOR_STOPS[particle.color].light
+    context.beginPath()
+    context.arc(particle.position.x, particle.position.y, Math.max(1, particle.scale * 2.2 * life), 0, Math.PI * 2)
+    context.fill()
   }
   context.restore()
 }
@@ -246,11 +300,11 @@ export function drawBubble(
   context.restore()
 }
 
-function drawShooter(context: CanvasRenderingContext2D, x: number, y: number, radius: number, bubble: BubbleDescriptor, aimDirection: Point2D, visualTheme: BubbleVisualTheme): void {
+function drawShooter(context: CanvasRenderingContext2D, x: number, y: number, radius: number, bubble: BubbleDescriptor, aimDirection: Point2D, visualTheme: BubbleVisualTheme, presentation?: GameplayPresentationFrame): void {
   const colors = BUBBLE_COLOR_STOPS[bubble.color]
   context.save()
   const aura = context.createRadialGradient(x, y + radius * .35, 0, x, y + radius * .35, radius * 2.2)
-  aura.addColorStop(0, 'rgba(187, 63, 255, .45)')
+  aura.addColorStop(0, `rgba(187, 63, 255, ${.35 + (presentation?.shooterGlow ?? .25)})`)
   aura.addColorStop(1, 'rgba(187, 63, 255, 0)')
   context.fillStyle = aura
   context.fillRect(x - radius * 2.3, y - radius * 1.5, radius * 4.6, radius * 3)
@@ -263,7 +317,7 @@ function drawShooter(context: CanvasRenderingContext2D, x: number, y: number, ra
   context.strokeStyle = '#dca7ff'
   context.lineWidth = radius * .12
   context.stroke()
-  drawBubble(context, x, y, radius, bubble, visualTheme, 'shooter', 1, { row: -3, column: 0 })
+  drawBubble(context, x, y, radius * (presentation?.shooterScale ?? 1), bubble, visualTheme, 'shooter', 1, { row: -3, column: 0 })
   drawAimPointer(context, x, y, radius, aimDirection, colors.light, colors.glow)
   context.restore()
 }
