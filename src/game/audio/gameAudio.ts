@@ -103,6 +103,9 @@ export class GameAudioController {
     Howler.mute(false)
     const context = Howler.ctx
     if (context?.state === 'suspended') void context.resume()
+    if (this.requestedMusicScene !== null && !this.musicMuted && !this.backgrounded) {
+      this.playMusic(this.requestedMusicScene)
+    }
   }
 
   public play(event: GameAudioEvent, options: GameAudioPlayOptions = {}): void {

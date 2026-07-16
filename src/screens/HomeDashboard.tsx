@@ -54,6 +54,7 @@ export function HomeDashboard({ profile, countries, progression, onLaunchLevel, 
   }, [highestUnlocked])
 
   useEffect(() => {
+    gameAudio.unlock()
     gameAudio.playMusic('home')
   }, [])
 
