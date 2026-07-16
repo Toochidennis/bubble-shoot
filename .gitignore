@@ -5,3 +5,6 @@ coverage/
 *.log
 .DS_Store
 .tmp-video-frames/
+.env
+.env.*
+!.env.example

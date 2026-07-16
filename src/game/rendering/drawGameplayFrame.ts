@@ -103,6 +103,7 @@ export function drawGameplayFrame(
   drawCeilingRail(context, width, boardCeilingY, options.presentation?.railPulse ?? 0)
 
   drawPresentationTrail(context, options.presentation?.trail ?? [])
+  if (options.presentation?.matchPulse !== null && options.presentation?.matchPulse !== undefined) drawMatchPulse(context, options.presentation.matchPulse)
 
   for (const cell of board.getOccupiedCells()) if (cell.value !== undefined) {
     const key = `${cell.coordinate.row}:${cell.coordinate.column}`
@@ -110,27 +111,58 @@ export function drawGameplayFrame(
     const entrance = options.presentation?.entranceProgress ?? 1
     const entranceAlpha = Math.min(1, Math.max(0, (entrance - cell.coordinate.row * .025) / .32))
     const entranceOffset = (1 - entranceAlpha) * -6
-    drawBubble(context, cell.center.x, cell.center.y + entranceOffset, board.config.bubbleRadius * (effect?.scale ?? (0.96 + entranceAlpha * .04)), cell.value, visualTheme, 'board', entranceAlpha, cell.coordinate)
+    drawBubble(context, cell.center.x, cell.center.y + entranceOffset, board.config.bubbleRadius * (effect?.scale ?? (0.96 + entranceAlpha * .04)), cell.value, visualTheme, 'board', entranceAlpha * (effect?.alpha ?? 1), cell.coordinate)
   }
   for (const effect of options.presentation?.bubbleEffects ?? []) {
     drawBubble(context, effect.position.x, effect.position.y, board.config.bubbleRadius * effect.scale, effect.bubble, visualTheme, 'projectile', effect.alpha, { row: -4, column: effect.key.length })
+    drawBubblePopAccent(context, effect, board.config.bubbleRadius)
   }
   for (const falling of fallingBubbles) {
     drawBubble(context, falling.position.x, falling.position.y, board.config.bubbleRadius * .82, falling.bubble, visualTheme, 'falling', .76, falling.coordinate)
   }
   for (const falling of options.presentation?.fallingBubbles ?? []) {
-    drawBubble(context, falling.position.x, falling.position.y, board.config.bubbleRadius * .82, falling.bubble, visualTheme, 'falling', .82, falling.coordinate)
+    context.save()
+    context.translate(falling.position.x, falling.position.y)
+    context.rotate(falling.rotation)
+    drawBubble(context, 0, 0, board.config.bubbleRadius * falling.scale, falling.bubble, visualTheme, 'falling', falling.alpha, falling.coordinate)
+    context.restore()
   }
 
   drawPresentationParticles(context, options.presentation?.particles ?? [])
+  if (options.presentation?.wallBounce !== null && options.presentation?.wallBounce !== undefined) drawWallBounceAccent(context, options.presentation.wallBounce, board.config.bubbleRadius)
 
   if (options.showTrajectory !== false && projectile === null) drawTrajectory(context, trajectory, snapshot.currentBubble.color, options.presentation?.trajectoryPhase ?? 0)
   if (projectile !== null) {
-    drawBubble(context, projectile.position.x, projectile.position.y, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length })
+    drawProjectileWithMotion(context, projectile, visualTheme, options.presentation?.wallBounce ?? null)
   } else if (options.terminalProjectile !== null && options.terminalProjectile !== undefined) {
     drawBubble(context, options.terminalProjectile.position.x, options.terminalProjectile.position.y, options.terminalProjectile.radius, options.terminalProjectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: options.terminalProjectile.id.length })
   }
   drawShooter(context, snapshot.origin.x, snapshot.origin.y, board.config.bubbleRadius, snapshot.currentBubble, snapshot.aimDirection, visualTheme, options.presentation)
+}
+
+function drawProjectileWithMotion(
+  context: CanvasRenderingContext2D,
+  projectile: ProjectileState,
+  visualTheme: BubbleVisualTheme,
+  wallBounce: NonNullable<GameplayPresentationFrame['wallBounce']> | null,
+): void {
+  if (wallBounce === null) {
+    drawBubble(context, projectile.position.x, projectile.position.y, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length })
+    return
+  }
+  const progress = Math.min(1, Math.max(0, wallBounce.progress))
+  const impactPhase = Math.min(1, progress / .24)
+  const reboundPhase = Math.max(0, (progress - .12) / .88)
+  const rebound = Math.sin(reboundPhase * Math.PI)
+  const alongScale = 1 - .06 * (1 - impactPhase) + .08 * rebound
+  const perpendicularScale = 1 + .045 * (1 - impactPhase) - .055 * rebound
+  const angle = Math.atan2(projectile.direction.y, projectile.direction.x)
+  context.save()
+  context.translate(projectile.position.x, projectile.position.y)
+  context.rotate(angle)
+  context.scale(alongScale, perpendicularScale)
+  drawBubble(context, 0, 0, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length })
+  context.restore()
 }
 
 function drawCeilingRail(context: CanvasRenderingContext2D, width: number, boardCeilingY: number, pulse = 0): void {
@@ -210,6 +242,50 @@ function drawTrajectory(context: CanvasRenderingContext2D, trajectory: Trajector
   context.restore()
 }
 
+function drawMatchPulse(context: CanvasRenderingContext2D, pulse: NonNullable<GameplayPresentationFrame['matchPulse']>): void {
+  const colors = BUBBLE_COLOR_STOPS[pulse.color]
+  const progress = Math.min(1, Math.max(0, pulse.progress))
+  const radius = 12 + progress * 32 * pulse.strength
+  const alpha = (1 - progress) * .34 * pulse.strength
+  context.save()
+  context.globalAlpha = alpha
+  context.strokeStyle = colors.light
+  context.shadowColor = colors.glow
+  context.shadowBlur = 12
+  context.lineWidth = Math.max(1.5, 3.5 * (1 - progress))
+  context.beginPath()
+  context.arc(pulse.position.x, pulse.position.y, radius, 0, Math.PI * 2)
+  context.stroke()
+  context.restore()
+}
+
+function drawBubblePopAccent(context: CanvasRenderingContext2D, effect: NonNullable<GameplayPresentationFrame['bubbleEffects']>[number], radius: number): void {
+  const colors = BUBBLE_COLOR_STOPS[effect.bubble.color]
+  context.save()
+  if (effect.flashAlpha > 0) {
+    const flashRadius = radius * 1.8
+    const flash = context.createRadialGradient(effect.position.x, effect.position.y, 0, effect.position.x, effect.position.y, flashRadius)
+    flash.addColorStop(0, `rgba(255,255,255,${effect.flashAlpha})`)
+    flash.addColorStop(.42, `${colors.light}${Math.round(effect.flashAlpha * 255).toString(16).padStart(2, '0')}`)
+    flash.addColorStop(1, 'rgba(255,255,255,0)')
+    context.fillStyle = flash
+    context.beginPath()
+    context.arc(effect.position.x, effect.position.y, flashRadius, 0, Math.PI * 2)
+    context.fill()
+  }
+  if (effect.ringAlpha > 0) {
+    context.globalAlpha = effect.ringAlpha
+    context.strokeStyle = colors.light
+    context.shadowColor = colors.glow
+    context.shadowBlur = 9
+    context.lineWidth = 2
+    context.beginPath()
+    context.arc(effect.position.x, effect.position.y, radius * 1.08 * effect.ringScale, 0, Math.PI * 2)
+    context.stroke()
+  }
+  context.restore()
+}
+
 function drawPresentationTrail(context: CanvasRenderingContext2D, trail: readonly { readonly position: Point2D; readonly color: BubbleColor; readonly age: number }[]): void {
   context.save()
   for (const [index, sample] of trail.entries()) {
@@ -223,15 +299,71 @@ function drawPresentationTrail(context: CanvasRenderingContext2D, trail: readonl
   context.restore()
 }
 
-function drawPresentationParticles(context: CanvasRenderingContext2D, particles: readonly { readonly type: string; readonly color: BubbleColor; readonly position: Point2D; readonly age: number; readonly lifetime: number; readonly scale: number }[]): void {
+function drawWallBounceAccent(
+  context: CanvasRenderingContext2D,
+  bounce: NonNullable<GameplayPresentationFrame['wallBounce']>,
+  radius: number,
+): void {
+  const colors = BUBBLE_COLOR_STOPS[bounce.color]
+  const progress = Math.min(1, Math.max(0, bounce.progress))
+  const alpha = (1 - progress) * .7 * bounce.strength
+  const ringRadius = radius * (.72 + progress * 1.1)
+  context.save()
+  context.globalAlpha = alpha
+  context.strokeStyle = colors.light
+  context.shadowColor = colors.glow
+  context.shadowBlur = 10
+  context.lineWidth = Math.max(1.2, radius * .1 * (1 - progress))
+  context.beginPath()
+  context.arc(bounce.position.x, bounce.position.y, ringRadius, 0, Math.PI * 2)
+  context.stroke()
+  context.shadowBlur = 0
+  context.strokeStyle = '#f5edff'
+  context.lineWidth = Math.max(1, radius * .06)
+  context.beginPath()
+  context.moveTo(bounce.position.x, bounce.position.y - radius * .7)
+  context.lineTo(bounce.position.x, bounce.position.y + radius * .7)
+  context.stroke()
+  context.restore()
+}
+
+function drawPresentationParticles(context: CanvasRenderingContext2D, particles: readonly { readonly type: string; readonly color: BubbleColor; readonly position: Point2D; readonly velocity: Point2D; readonly age: number; readonly lifetime: number; readonly scale: number; readonly rotation: number }[]): void {
   context.save()
   for (const particle of particles) {
     const life = Math.max(0, 1 - particle.age / particle.lifetime)
-    context.globalAlpha = life * (particle.type === 'DROP_TRAIL' ? .28 : .72)
-    context.fillStyle = BUBBLE_COLOR_STOPS[particle.color].light
-    context.beginPath()
-    context.arc(particle.position.x, particle.position.y, Math.max(1, particle.scale * 2.2 * life), 0, Math.PI * 2)
-    context.fill()
+    const colors = BUBBLE_COLOR_STOPS[particle.color]
+    context.globalAlpha = life * (particle.type === 'DROP_TRAIL' ? .28 : particle.type === 'POP_FRAGMENT' ? .82 : .72)
+    context.fillStyle = particle.type === 'POP_FRAGMENT' ? colors.base : colors.light
+    context.strokeStyle = colors.light
+    if (particle.type === 'POP_SPARK' || particle.type === 'BOUNCE_SPARK') {
+      const length = Math.max(3, particle.scale * 8 * life)
+      const directionLength = Math.max(.001, Math.hypot(particle.velocity.x, particle.velocity.y))
+      const dx = particle.velocity.x / directionLength * length
+      const dy = particle.velocity.y / directionLength * length
+      context.lineWidth = Math.max(1, particle.scale * 1.8 * life)
+      context.lineCap = 'round'
+      context.beginPath()
+      context.moveTo(particle.position.x - dx * .35, particle.position.y - dy * .35)
+      context.lineTo(particle.position.x + dx, particle.position.y + dy)
+      context.stroke()
+    } else if (particle.type === 'POP_FRAGMENT') {
+      const size = Math.max(1.5, particle.scale * 4.2 * life)
+      context.save()
+      context.translate(particle.position.x, particle.position.y)
+      context.rotate(particle.rotation)
+      context.beginPath()
+      context.moveTo(0, -size)
+      context.lineTo(size * .62, 0)
+      context.lineTo(0, size)
+      context.lineTo(-size * .62, 0)
+      context.closePath()
+      context.fill()
+      context.restore()
+    } else {
+      context.beginPath()
+      context.arc(particle.position.x, particle.position.y, Math.max(1, particle.scale * 2.2 * life), 0, Math.PI * 2)
+      context.fill()
+    }
   }
   context.restore()
 }

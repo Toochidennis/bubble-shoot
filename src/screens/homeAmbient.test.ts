@@ -14,4 +14,10 @@ describe('Home ambient presentation metadata', () => {
     expect(homeAmbientMotionProfile('mid').durationSeconds).toBeLessThan(homeAmbientMotionProfile('far').durationSeconds)
     expect(homeAmbientMotionProfile('far').opacity).toBeLessThan(homeAmbientMotionProfile('near').opacity)
   })
+
+  it('gives each orb an independent, bounded drift profile', () => {
+    expect(new Set(HOME_AMBIENT_ELEMENTS.map((element) => `${element.driftX}:${element.driftY}:${element.delay}`)).size).toBe(6)
+    expect(HOME_AMBIENT_ELEMENTS.every((element) => element.driftX.endsWith('px') && element.driftY.endsWith('px') && element.driftRotate.endsWith('deg'))).toBe(true)
+    expect(HOME_AMBIENT_ELEMENTS.every((element) => element.driftScale > 0 && element.driftScale <= .03)).toBe(true)
+  })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import type { ProgressionRepository } from '../game/progression/ProgressionRepository'
 import { MAX_SUPPORTED_LEVEL_ID } from '../game/progression/types'
@@ -6,17 +6,25 @@ import { DEFAULT_MAP_LAYOUT, getMapContentHeight, getMapFocusScrollTop, getMapNo
 import { getMapLevelState, getQuickPlayLevel } from '../game/map/progressionView'
 import { GameIcon } from '../components/GameIcon'
 import { HOME_AMBIENT_ELEMENTS } from './homeAmbient'
+import { gameAudio } from '../game/audio/gameAudio'
+import type { BubbleShooterCountryOption } from '../game/catalog/bubbleShooterCatalogTypes'
+import { bubbleShooterFlagDisplay } from '../game/catalog/bubbleShooterCatalogFormatting'
+import type { BubbleShooterProfile } from '../game/profile/bubbleShooterProfile'
 
 interface HomeDashboardProps {
+  readonly profile: BubbleShooterProfile
+  readonly countries: readonly BubbleShooterCountryOption[]
   readonly progression: ProgressionRepository
   readonly onLaunchLevel: (levelId: number) => void
+  readonly onSettings: () => void
+  readonly onProfile: () => void
 }
 
 function starsFor(levelId: number, progression: ProgressionRepository): number {
   return progression.getRecord(levelId)?.bestStars ?? 0
 }
 
-export function HomeDashboard({ progression, onLaunchLevel }: HomeDashboardProps) {
+export function HomeDashboard({ profile, countries, progression, onLaunchLevel, onSettings, onProfile }: HomeDashboardProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const focusedRef = useRef(false)
   const [selectedLevel, setSelectedLevel] = useState(() => progression.highestUnlockedLevel)
@@ -45,35 +53,43 @@ export function HomeDashboard({ progression, onLaunchLevel }: HomeDashboardProps
     setScrollTop(viewport.scrollTop)
   }, [highestUnlocked])
 
+  useEffect(() => {
+    gameAudio.playMusic('home')
+  }, [])
+
   const selectedState = getMapLevelState(selectedLevel, highestUnlocked, progression.getRecord(selectedLevel))
   const selectedStars = starsFor(selectedLevel, progression)
   const pathTop = Math.max(0, getMapNodeLayout(range.start).y + 70)
   const pathBottom = getMapNodeLayout(range.end).y + 270
   const pathHeight = Math.max(240, pathBottom - pathTop)
+  const playUi = () => { gameAudio.unlock(); gameAudio.playMusic('home'); gameAudio.play('uiClick') }
   const launchSelected = () => {
-    if (selectedState !== 'locked') onLaunchLevel(selectedLevel)
+    if (selectedState !== 'locked') { playUi(); onLaunchLevel(selectedLevel) }
   }
   const quickPlayLevel = getQuickPlayLevel(highestUnlocked, MAX_SUPPORTED_LEVEL_ID)
+  const profileCountry = countries.find((country) => country.code === profile.countryCode)
 
   return (
     <main className="home-dashboard" aria-label="Bubble Shooter Home Dashboard">
       <div className="dashboard-ambient" aria-hidden="true">
         <span className="ambient-glow ambient-glow--one" />
         <span className="ambient-glow ambient-glow--two" />
-        {HOME_AMBIENT_ELEMENTS.map((bubble) => <span key={`${bubble.left}-${bubble.top}`} className={`ambient-bubble ambient-bubble--${bubble.color} ambient-bubble--${bubble.depth}`} style={{ left: bubble.left, top: bubble.top, width: bubble.size, height: bubble.size, animationDuration: bubble.duration, animationDelay: bubble.delay }} />)}
+        {HOME_AMBIENT_ELEMENTS.map((bubble) => <span key={`${bubble.left}-${bubble.top}`} className={`ambient-bubble ambient-bubble--${bubble.color} ambient-bubble--${bubble.depth}`} style={{ left: bubble.left, top: bubble.top, width: bubble.size, height: bubble.size, '--ambient-duration': bubble.duration, '--ambient-delay': bubble.delay, '--ambient-drift-x': bubble.driftX, '--ambient-drift-y': bubble.driftY, '--ambient-rotate': bubble.driftRotate, '--ambient-scale': bubble.driftScale, '--ambient-loop-in-x': bubble.loopInX, '--ambient-loop-in-y': bubble.loopInY, '--ambient-loop-out-x': bubble.loopOutX, '--ambient-loop-out-y': bubble.loopOutY } as CSSProperties} />)}
       </div>
 
       <header className="dashboard-hud">
+        <button className="dashboard-profile" type="button" aria-label="Open your profile" onClick={() => { playUi(); onProfile() }}>
+          <img className="dashboard-profile-avatar" src={`/avatars/${profile.avatarId}.png`} alt="" />
+          <span className="dashboard-profile-copy">
+            <strong>{profile.displayName || 'Player'}</strong>
+            <span className="dashboard-profile-flag" aria-label={profileCountry ? profileCountry.name : 'Country not selected'}>{profileCountry ? bubbleShooterFlagDisplay(profileCountry.emoji ?? profileCountry.code) : '🌐'}</span>
+          </span>
+        </button>
         <div className="dashboard-brand" aria-label="Bubble Shooter">
           <span className="brand-orb">✦</span>
           <span><strong>BUBBLE</strong><em>SHOOTER</em></span>
         </div>
-        <div className="hud-progress" aria-label={`Level ${highestUnlocked} unlocked`}>
-          <span className="hud-label">PROGRESS</span>
-          <strong>{highestUnlocked.toLocaleString()}</strong>
-          <span className="hud-cap">/ {MAX_SUPPORTED_LEVEL_ID.toLocaleString()}</span>
-        </div>
-        <button className="hud-settings" type="button" aria-label="Settings unavailable in this phase" disabled><GameIcon name="settings" size={23} /></button>
+        <button className="hud-settings" type="button" aria-label="Open settings" onClick={() => { playUi(); onSettings() }}><GameIcon name="settings" size={23} /></button>
       </header>
 
       <section className="dashboard-hero" aria-label="Selected level">
@@ -114,7 +130,7 @@ export function HomeDashboard({ progression, onLaunchLevel }: HomeDashboardProps
                 type="button"
                 className={`level-node level-node--${state} ${selectedLevel === levelId ? 'is-selected' : ''}`}
                 style={{ top: layout.y + 170, left: `calc(50% + ${layout.x * 36}%)` }}
-                onClick={() => state !== 'locked' && setSelectedLevel(levelId)}
+                onClick={() => { if (state !== 'locked') { playUi(); setSelectedLevel(levelId) } }}
                 disabled={state === 'locked'}
                 aria-label={`Level ${levelId}, ${state}${stars > 0 ? `, ${stars} stars` : ''}`}
               >
@@ -128,13 +144,13 @@ export function HomeDashboard({ progression, onLaunchLevel }: HomeDashboardProps
 
       <nav className="dashboard-nav" aria-label="Main navigation">
         <button className="nav-item is-active" type="button" onClick={() => mapRef.current?.scrollTo({ top: getMapFocusScrollTop(highestUnlocked, viewportHeight), behavior: 'smooth' })}><GameIcon name="home" /><small>HOME</small></button>
-        <button className="nav-item" type="button" onClick={() => mapRef.current?.scrollTo({ top: scrollTop, behavior: 'smooth' })}><GameIcon name="map" /><small>MAP</small></button>
-        <button className="quick-play" type="button" onClick={() => onLaunchLevel(quickPlayLevel)} aria-label={`Continue at level ${quickPlayLevel}`}><span className="quick-play-ring"><GameIcon name="play" size={28} /></span><small>PLAY</small></button>
+        <button className="nav-item" type="button" onClick={() => { playUi(); onProfile() }}><GameIcon name="user" /><small>PROFILE</small></button>
+        <button className="quick-play" type="button" onClick={() => { playUi(); onLaunchLevel(quickPlayLevel) }} aria-label={`Continue at level ${quickPlayLevel}`}><span className="quick-play-ring"><GameIcon name="play" size={28} /></span><small>PLAY</small></button>
         <button className="nav-item nav-item--disabled" type="button" disabled aria-disabled="true"><GameIcon name="ranking" /><small>RANKING</small></button>
         <button className="nav-item nav-item--disabled" type="button" disabled aria-disabled="true"><GameIcon name="rewards" /><small>REWARDS</small></button>
       </nav>
 
-      <div className="dashboard-status" aria-live="polite">{snapshot.lastWriteFailed ? 'Progress saved locally when available' : `Best stars ${selectedStars}/3`}</div>
+      {snapshot.lastWriteFailed ? <div className="dashboard-status" aria-live="polite">Progress saved locally when available</div> : null}
     </main>
   )
 }

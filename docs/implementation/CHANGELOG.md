@@ -10,24 +10,42 @@ All notable implementation and project-control changes are recorded here. Bluepr
 - Score count-up, mission-progress pulse, star-threshold pulse, and a short terminal transition delay while preserving immediate authoritative state.
 - Deterministic Home ambient metadata/tests and slow depth-layer motion for the existing six bubbles, two glows, and sparkle field.
 - Focused Phase 16 tests covering entrance gating, pause/resume, frame-rate independence, bounded queues, authoritative match/floating copies, reset clearing, and Home motion metadata.
+- Focused match-pop tests covering the synchronized cluster pulse, external color ring, flash, fragment particles, and cleanup after the presentation window.
 
 ### Changed
 
 - Gameplay Canvas now renders presentation trails, particles, falling copies, rail pulse, trajectory shimmer, board entrance, and restrained shooter recoil around unchanged Phase 15 geometry and rules.
+- Matched bubbles now use a staged premium pop: cluster pulse, distance-ordered anticipation, volume-preserving compression/expansion, external same-color ring, short flash, color-matched sparks, and bounded diamond fragments. Floating copies now rotate subtly while accelerating downward.
+- Fired bubbles now receive authoritative wall-contact feedback: subtle directional squash, rebound stretch, wall-aligned color ring, and short same-color sparks while the real projectile continues along the reflected physics direction.
 - Home ambient bubbles use long deterministic drift profiles; reduced motion disables drift while keeping the approved background composition.
+- Home ambient bubbles now use independent curved drift vectors, subtle rotation/scale breathing, and slower 28-64 second depth-layer timing. The redundant `Best stars 0/3` status line was removed while node-level star records remain available.
 - The gameplay mission hub now keeps two objectives visible: chips sit side-by-side when space allows and wrap into a controlled two-line HUD area on narrow mobile widths.
 - Phase tracker and project status now record Phase 16 complete and Phase 17 pending owner review.
 
 ### Verified
 
 - Typecheck and lint passed with zero diagnostics.
-- 39 test files and 211 tests passed.
-- Production build passed: 306.99 kB JS / 93.56 kB gzip and 19.79 kB CSS / 5.53 kB gzip.
+- 39 test files and 212 tests passed.
+- Production build passed: 311.94 kB JS / 94.78 kB gzip and 20.24 kB CSS / 5.67 kB gzip.
 - Installed-Chrome fallback smoke at 430x784 rendered Home, Level 1 entrance, and a real shot with no gameplay console errors; the only console warning was the existing missing static resource (404).
+- The live 430x784 fallback also confirmed the normal gameplay Canvas rendered the active projectile and updated shots/mission state after a synthetic pointer shot; the only console warning remained the existing missing static resource (404).
+- A shallow-angle 430x784 fallback shot confirmed the projectile reached the wall with its fading trail during rebound; the only console warning remained the existing missing static resource (404).
+- WON terminal feedback now offers Next Level and Home only; Replay was removed from successful completion. LOST retains Retry and Home.
 
 ### Scope confirmation
 
 - No Phase 17 work started. No audio, camera shake, WebGL, new assets, balance change, geometry change, progression change, or gameplay-rule change was introduced.
+
+### Follow-up mission-first HUD correction
+
+- Removed Level, Score, and Star progress from the active gameplay hub; terminal completion now presents Level, final Score, and earned Stars together.
+- Added sequential earned-star reveal animation in the completion popup, with reduced-motion support.
+- Replaced text-only mission chips with visible bubble target cards, modern SVG action icons, and authoritative countdown progress for one or two objectives.
+- Tightened mission hub spacing and glass surfaces, enlarged the remaining-count hierarchy, and added a subtle progress ring around each objective bubble.
+
+### Follow-up gameplay feel correction
+
+- Raised the default projectile speed from 960 to 1,000 logical units per second for faster mobile bubble travel while preserving the existing swept-collision, bounce, trajectory, and snap authorities.
 
 ## 2026-07-14 - Phase 15 dense-board and jewel-color correction
 

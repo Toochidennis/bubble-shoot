@@ -20,6 +20,9 @@ import { createDefaultShooterConfig } from '../game/shooter/shooterConfig'
 import { AimPointerController } from '../game/shooter/aimPointerController'
 import type { ShooterStateSnapshot } from '../game/shooter/types'
 import { GameplayPresentationTimeline } from '../game/presentation/gameplayPresentationTimeline'
+import { MatchEffectsOverlay } from '../game/presentation/matchEffectsOverlay'
+import { gameAudio } from '../game/audio/gameAudio'
+import { getGamePreferences, PREFERENCES_CHANGED_EVENT } from '../app/preferences'
 import { LevelSession } from '../game/levels/LevelSession'
 import { createGameplayLayout } from '../game/layout/gameplayLayout'
 import { GameIcon } from './GameIcon'
@@ -80,6 +83,7 @@ interface CanvasHostProps {
 
 export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, pauseRequested = false, restartRequest = 0, onPauseStateChange, progression }: CanvasHostProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const effectsCanvasRef = useRef<HTMLCanvasElement>(null)
   const contextRef = useRef<CanvasRenderingContext2D | null>(null)
   const renderFrameRef = useRef<((nextSnapshot: ShooterStateSnapshot) => void) | null>(null)
   const metricsRef = useRef<CanvasMetrics>(INITIAL_METRICS)
@@ -88,11 +92,13 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
   const gameplayLayoutRef = useRef(initialGameplayLayout)
   const sessionRef = useRef<LevelSession>(new LevelSession(initialLevelId, initialViewport, progression, initialGameplayLayout))
   const presentationTimelineRef = useRef(new GameplayPresentationTimeline())
+  const matchEffectsOverlayRef = useRef(new MatchEffectsOverlay())
   const terminalProjectileRef = useRef<import('../game/physics/types').ProjectileState | null>(null)
   const presentationAnimationFrameRef = useRef(0)
   const presentationFrameTimeRef = useRef(0)
   const startPresentationAnimationRef = useRef<(() => void) | null>(null)
   const presentationScoreRef = useRef<{ levelId: number; score: number }>({ levelId: initialLevelId, score: 0 })
+  const audioStatusRef = useRef<string>('ACTIVE')
   const gameLoopRef = useRef<GameLoop | null>(null)
   const aimPointerRef = useRef(new AimPointerController())
   const [metrics, setMetrics] = useState<CanvasMetrics>(INITIAL_METRICS)
@@ -111,6 +117,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       throw new Error('Canvas 2D is not supported by this browser.')
     }
     contextRef.current = context
+    const matchEffectsOverlay = matchEffectsOverlayRef.current
 
     const render = (nextSnapshot: ShooterStateSnapshot) => {
       if (metricsRef.current.logicalWidth <= 0 || metricsRef.current.logicalHeight <= 0) return
@@ -130,6 +137,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
             presentation: presentationTimelineRef.current.frame(),
           },
         )
+        matchEffectsOverlayRef.current.render()
         return
       }
       drawShooterDebugFrame(
@@ -144,19 +152,29 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
         sessionRef.current.gameplay.lastTurnResult?.match ?? null,
         [],
       )
+      matchEffectsOverlayRef.current.render()
     }
     renderFrameRef.current = render
 
     presentationTimelineRef.current.reset(initialLevelId, initialViewport.height)
-    presentationTimelineRef.current.setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    const applyMotionPreference = () => {
+      const reducedMotion = getGamePreferences().reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      presentationTimelineRef.current.setReducedMotion(reducedMotion)
+      matchEffectsOverlayRef.current.setReducedMotion(reducedMotion)
+    }
+    applyMotionPreference()
+    window.addEventListener(PREFERENCES_CHANGED_EVENT, applyMotionPreference)
     presentationTimelineRef.current.beginBoardEntrance()
+    if (effectsCanvasRef.current !== null) {
+      void matchEffectsOverlayRef.current.mount(effectsCanvasRef.current, initialViewport.width, initialViewport.height)
+    }
     const animatePresentation = (time: number) => {
       const previousTime = presentationFrameTimeRef.current || time
       const deltaSeconds = Math.min(Math.max((time - previousTime) / 1000, 0), 0.05)
       presentationFrameTimeRef.current = time
       presentationTimelineRef.current.advance(deltaSeconds)
       render(sessionRef.current.gameplay.shooter.snapshot())
-      if (!presentationTimelineRef.current.isPaused && presentationTimelineRef.current.hasActiveEffects) {
+      if (!presentationTimelineRef.current.isPaused && (presentationTimelineRef.current.hasActiveEffects || matchEffectsOverlayRef.current.hasActiveEffects)) {
         presentationAnimationFrameRef.current = window.requestAnimationFrame(animatePresentation)
       } else {
         presentationAnimationFrameRef.current = 0
@@ -189,7 +207,10 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       }
 
       presentationTimelineRef.current.recordProjectile(nextResult.projectileStep.projectile)
-      for (const bounce of nextResult.projectileStep.wallBounces) presentationTimelineRef.current.emitWallBounce(bounce, nextResult.projectileStep.projectile.bubble)
+      for (const bounce of nextResult.projectileStep.wallBounces) {
+        presentationTimelineRef.current.emitWallBounce(bounce, nextResult.projectileStep.projectile.bubble)
+        gameAudio.play('wallBounce', { rate: bounce.wall === 'left' ? 1.22 : 1.3 })
+      }
       startPresentationAnimation()
 
       if (nextResult.turn !== null) {
@@ -198,9 +219,20 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
         terminalProjectileRef.current = turn.terminalProjectile
         setFlightStatus(turn.impact === null ? 'ready' : `impact:${turn.impact.type}`)
         presentationTimelineRef.current.emitTurn(turn, session.gameplay.board.config)
+        matchEffectsOverlayRef.current.emitTurn(turn, session.gameplay.board.config, session.activeLevel.id)
+        if (turn.match?.ok === true && turn.match.matched) {
+          gameAudio.play('bubblePop', { rate: 1 + Math.min(.22, turn.match.clusterSize / 60) })
+          gameAudio.play('matchBurst', { rate: .9 + Math.min(.2, turn.match.clusterSize / 40) })
+        }
+        if (turn.floating?.removedAny) gameAudio.play('dropBubble', { rate: 1 + Math.min(.2, turn.floating.removedCount / 30) })
         startPresentationAnimation()
       }
       const presentedSession = session.snapshot()
+      if (presentedSession.status !== audioStatusRef.current) {
+        if (presentedSession.status === 'WON') gameAudio.play('win')
+        if (presentedSession.status === 'LOST') gameAudio.play('lose')
+        audioStatusRef.current = presentedSession.status
+      }
       if (presentationScoreRef.current.levelId !== presentedSession.levelId) presentationScoreRef.current = { levelId: presentedSession.levelId, score: 0 }
       for (const threshold of [presentedSession.starThresholds.one, presentedSession.starThresholds.two, presentedSession.starThresholds.three]) {
         if (presentationScoreRef.current.score < threshold && presentedSession.currentRunScore >= threshold) {
@@ -235,6 +267,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       })
       metricsRef.current = nextMetrics
       presentationTimelineRef.current.setViewportHeight(nextMetrics.logicalHeight)
+        matchEffectsOverlayRef.current.resize(nextMetrics.logicalWidth, nextMetrics.logicalHeight)
         const nextSnapshot = sessionRef.current.gameplay.shooter.snapshot()
         render(nextSnapshot)
         setMetrics(nextMetrics)
@@ -251,6 +284,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
 
     return () => {
       observer.disconnect()
+      window.removeEventListener(PREFERENCES_CHANGED_EVENT, applyMotionPreference)
       window.removeEventListener('orientationchange', resize)
       window.cancelAnimationFrame(resizeFrame)
       loop.stop()
@@ -260,16 +294,19 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       gameLoopRef.current = null
       contextRef.current = null
       renderFrameRef.current = null
+      matchEffectsOverlay.dispose()
     }
-  }, [initialLevelId, initialViewport.height, onSessionSnapshot])
+  }, [initialLevelId, initialViewport.height, initialViewport.width, onSessionSnapshot])
 
   useEffect(() => {
     const session = sessionRef.current
     if (pauseRequested) {
       const paused = session.pause()
       if (paused.ok) {
+        gameAudio.play('pause')
         gameLoopRef.current?.stop()
         presentationTimelineRef.current.setPaused(true)
+        matchEffectsOverlayRef.current.setPaused(true)
         setSessionSnapshot(session.snapshot())
         onSessionSnapshot?.(session.snapshot())
         onPauseStateChange?.(true)
@@ -279,6 +316,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     const resumed = session.resume()
     if (resumed.ok) {
         presentationTimelineRef.current.setPaused(false)
+      matchEffectsOverlayRef.current.setPaused(false)
       setSessionSnapshot(session.snapshot())
       onSessionSnapshot?.(session.snapshot())
         onPauseStateChange?.(false)
@@ -315,6 +353,8 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
   }
 
   const beginAim = (event: PointerEvent<HTMLCanvasElement>) => {
+    gameAudio.unlock()
+    gameAudio.playMusic('gameplay')
     if (presentationTimelineRef.current.isInputBlocked) return
     if (!aimPointerRef.current.begin(event.pointerId)) return
     if (!sessionRef.current.updateAim(getPointerPoint(event) ?? sessionRef.current.gameplay.shooter.snapshot().origin)) {
@@ -343,6 +383,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     }
 
     terminalProjectileRef.current = null
+    gameAudio.play('shot')
     presentationTimelineRef.current.emitAcceptedShot(sessionRef.current.gameplay.shooter.snapshot().origin, sessionRef.current.gameplay.shooter.snapshot().currentBubble)
     const nextSnapshot = sessionRef.current.gameplay.shooter.snapshot()
     setSnapshot(nextSnapshot)
@@ -360,8 +401,10 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
     presentationAnimationFrameRef.current = 0
     presentationTimelineRef.current.reset(levelId, metricsRef.current.logicalHeight || initialViewport.height)
     presentationTimelineRef.current.beginBoardEntrance()
+    matchEffectsOverlayRef.current.clear()
     terminalProjectileRef.current = null
     presentationScoreRef.current = { levelId, score: 0 }
+    audioStatusRef.current = 'ACTIVE'
     const loaded = APP_CONFIG.development.showCanvasDiagnostics
       ? sessionRef.current.loadDevelopmentLevel(levelId)
       : sessionRef.current.loadLevel(levelId)
@@ -400,12 +443,13 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       >
         Your browser does not support HTML5 Canvas.
       </canvas>
+      <canvas ref={effectsCanvasRef} className="gameplay-effects-canvas" aria-hidden="true" />
       {APP_CONFIG.development.showCanvasDiagnostics ? <figcaption aria-live="polite">
         {APP_CONFIG.development.showCanvasDiagnostics ? 'Physics debug ready' : 'Canvas ready'} ·{' '}
         {Math.round(metrics.logicalWidth)} × {Math.round(metrics.logicalHeight)} logical pixels ·{' '}
         {metrics.pixelRatio}× DPR · {snapshot.inputLocked ? 'input locked' : 'aim ready'} · flight {flightStatus} · level {sessionSnapshot?.displayNumber ?? 1} · score {sessionSnapshot?.currentRunScore ?? 0} · last turn {sessionSnapshot?.lastTurnScore?.total ?? 0} · stars {sessionSnapshot?.earnedStars ?? 0} · best {sessionSnapshot?.bestScore ?? 0}/{sessionSnapshot?.bestStars ?? 0} · unlocked through {sessionSnapshot?.highestUnlockedLevel ?? 1} · {sessionSnapshot?.levelUnlocked ? 'unlocked' : 'locked'} · mission {sessionSnapshot?.mission.remainingBubbleCount ?? 0} remaining · shots {sessionSnapshot?.shotsRemaining ?? 0} · {sessionSnapshot?.status ?? 'ACTIVE'} · state {sessionSnapshot?.gameplay.state ?? 'AIMING'} · turn {sessionSnapshot?.gameplay.turnNumber ?? 0}{sessionSnapshot?.contentInvariant ? ` · INVARIANT ${sessionSnapshot.contentInvariant.type} level ${sessionSnapshot.contentInvariant.levelId} turn ${sessionSnapshot.contentInvariant.processedTurnNumber}` : ''}
       </figcaption> : null}
-      {onHome ? <button type="button" className="gameplay-home-button" onClick={onHome}><GameIcon name="back" size={18} /> Home</button> : null}
+      {onHome ? <button type="button" className="gameplay-home-button" onClick={() => { gameAudio.unlock(); gameAudio.play('uiClick'); onHome() }}><GameIcon name="back" size={18} /> Home</button> : null}
       {APP_CONFIG.development.showCanvasDiagnostics ? (
         <div className="development-level-controls" aria-label="Development level controls">
           <label>

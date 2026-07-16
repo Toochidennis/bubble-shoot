@@ -8,7 +8,7 @@
 
 ## Objective and boundaries
 
-Phase 16 adds restrained, Bubble Shooter-appropriate presentation around the approved Phase 15 authorities. Animation consumes authoritative shot, projectile, wall-contact, turn, match, floating, score, mission, star, and terminal results; it never calculates placement, matching, falling, score, mission progress, BubbleColor, or win/loss. Phase 15 geometry, dense boards, colors, HUD hierarchy, missions, shot balance, generation, progression, and snap rules remain unchanged. No audio, camera shake, WebGL, new raster artwork, balance work, or Phase 17 work was added.
+Phase 16 adds restrained, Bubble Shooter-appropriate presentation around the approved Phase 15 authorities. Animation consumes authoritative shot, projectile, wall-contact, turn, match, floating, score, mission, star, and terminal results; it never calculates placement, matching, falling, score, mission progress, BubbleColor, or win/loss. Phase 15 geometry, dense boards, colors, missions, shot balance, generation, progression, and snap rules remain unchanged; the follow-up mission-first HUD correction changes presentation grouping only. No audio, camera shake, WebGL, new raster artwork, balance work, or Phase 17 work was added.
 
 ## Sources reviewed
 
@@ -28,7 +28,10 @@ Phase 16 adds restrained, Bubble Shooter-appropriate presentation around the app
 ## Files modified
 
 - `src/components/CanvasHost.tsx`
+- `src/components/GameIcon.tsx`
 - `src/game/rendering/drawGameplayFrame.ts`
+- `src/screens/gameplayPresentation.ts`
+- `src/screens/gameplayPresentation.test.ts`
 - `src/screens/FoundationScreen.tsx`
 - `src/screens/HomeDashboard.tsx`
 - `src/styles/global.css`
@@ -45,11 +48,11 @@ Phase 16 adds restrained, Bubble Shooter-appropriate presentation around the app
 
 - Shooter fire emits a restrained color-matched recoil/compression and glow while the shooter origin and loaded bubble remain fixed.
 - The trail records real authoritative projectile positions, fades quickly, and is capped at eight samples; it does not draw a laser or shortcut wall-bounce path.
-- Wall feedback uses the authoritative contact point, a short pulse, and 1-3 same-color sparks without screen shake.
+- Wall feedback uses the authoritative contact point, a brief directional squash on contact, rebound stretch, wall-aligned same-color ring flash, and 1-3 same-color sparks without screen shake. The reflected projectile remains the authoritative physics object.
 - Ceiling contact pulses the existing rail at the authoritative contact location; rail geometry is not moved.
 - Successful snap uses a brief visual settle and returns to scale 1 without changing grid centers, collision radius, or board occupancy.
 - Authoritative match descriptors are copied for a short brightness/scale anticipation and distance-ordered pop propagation. Only the returned matched set is presented.
-- Pop effects retain deep jewel-color identity (sapphire, emerald, amethyst, ruby, amber) with same-color sparks/fragments rather than white explosions or rainbow confetti. Normal matches stay light; larger matches receive bounded additional particles.
+- Match-pop presentation now uses a staged premium sequence: a synchronized cluster pulse, distance-ordered anticipation, brief volume-preserving compression/expansion, an external same-color ring, a short color flash, and color-matched ray sparks plus bounded diamond fragments. The authoritative sphere remains smooth and round; no center hole, polygon, white explosion, or rainbow confetti is introduced. Normal matches stay light; larger matches receive bounded additional particles.
 - Floating descriptors create a short detach emphasis before falling. Only authoritative removed floating bubbles fall; supported bubbles never do. Falling copies accelerate downward, use deterministic subtle drift, leave restrained trails, and expire below the viewport.
 - Drop response scales by authoritative removed count through stronger pulse/trail intensity, with no combo text or score multiplier.
 - Trajectory dots remain at exact predicted positions; only their BubbleColor-tinted brightness shimmers. The dot count remains capped at 40.
@@ -58,9 +61,17 @@ Phase 16 adds restrained, Bubble Shooter-appropriate presentation around the app
 
 ## HUD feedback and transitions
 
-Displayed score interpolates over approximately 320ms toward the immediate authoritative score; mission chips pulse only for changed authoritative objectives; star threshold feedback fires once per threshold per run and uses bounded gold sparks. Neither display mutates scoring, mission runtime, or progression. WON/LOST overlays wait approximately 240ms after the authoritative terminal transition so the final snap/pop/drop remains visible. Restart and level changes clear score display, threshold history, trail, particles, falling copies, and entrance state.
+The active hub keeps only the essential shot counter and pause control; final score and stars are presented after completion. Mission cards pulse only for changed authoritative objectives. Neither display mutates scoring, mission runtime, or progression. WON/LOST overlays wait approximately 240ms after the authoritative terminal transition so the final snap/pop/drop remains visible. WON presents Next Level and Home only; LOST presents Retry and Home. Restart and level changes clear terminal result state, trail, particles, falling copies, and entrance state.
 
-The mission hub now supports two objective chips responsively: objectives remain side-by-side at 430px, while narrow 260px verification wraps them into two visible lines without clipping the HUD or covering the ceiling rail.
+The mission hub now supports two visual objective cards responsively: cards remain side-by-side at 430px, while narrow 260px verification stacks them into a controlled visible area without clipping the HUD or covering the ceiling rail.
+
+## Follow-up mission-first HUD correction
+
+The gameplay hub no longer displays Level, Score, or Star progress. Those results are reserved for the terminal completion popup, where the final level, authoritative score, and earned stars are shown together. Earned stars reveal sequentially with a short scale/glow entrance; reduced motion removes the decorative star transform while preserving the result.
+
+Mission objectives now render as prominent bubble target cards rather than text-only chips. Each card uses the existing jewel-tone bubble treatment, a cohesive inline SVG action icon, a readable action label, and a countdown (`N left`) driven by authoritative `MissionObjectiveProgress.remaining`. Pop Color uses the target BubbleColor, marked targets receive an external ring, and Drop/Clear/Reach objectives use distinct bubble/icon pairings. One or two objectives remain independently visible and pulse only when authoritative progress changes.
+
+The follow-up visual pass tightens the hub glass surface, reduces border/glow weight, aligns Pause and Shots into a compact top row, makes the numeric countdown dominant, adds a subtle conic progress ring around each mission bubble, and stacks cards cleanly on narrow screens.
 
 ## Board entrance and input gate
 
@@ -72,7 +83,7 @@ Pause freezes recoil, trail ages, shimmer, rail pulses, particles, falling accel
 
 ## Home ambient architecture
 
-Home reuses exactly six existing decorative bubbles/orbs, two existing glow fields, and the existing sparkle layer. `homeAmbient.ts` supplies deterministic near/mid/far metadata; CSS transform/opacity animation creates slow 18-46 second zero-gravity drift, depth variation, glow breathing, and sparkle breathing. The ambient wrapper and elements use `pointer-events: none`, remain behind the fixed HUD/map/navigation, create no objects per frame, and do not rerender or alter the virtualized level map. Reduced motion leaves the approved background composition static and calm.
+Home reuses exactly six existing decorative bubbles/orbs, two existing glow fields, and the existing sparkle layer. `homeAmbient.ts` supplies deterministic near/mid/far metadata with independent drift vectors, micro-rotation, scale breathing, and phase offsets; CSS transform/opacity animation creates slow 28-64 second zero-gravity drift, depth variation, glow breathing, and sparkle breathing. The redundant `Best stars 0/3` status line is removed; level nodes and the selected-level star treatment remain available where they provide context. The ambient wrapper and elements use `pointer-events: none`, remain behind the fixed HUD/map/navigation, create no objects per frame, and do not rerender or alter the virtualized level map. Reduced motion leaves the approved background composition static and calm.
 
 ## Tests and checks
 
@@ -80,26 +91,27 @@ Home reuses exactly six existing decorative bubbles/orbs, two existing glow fiel
 | --- | --- |
 | `npm.cmd run typecheck` | Passed with no TypeScript diagnostics. |
 | `npm.cmd run lint` | Passed with zero warnings under `--max-warnings 0`. |
-| `npm.cmd test -- --run` | Passed: 39 test files, 211 tests, 0 failures. |
-| `npm.cmd run build` | Passed: Vite 8.1.4; JS 306.99 kB / 93.56 kB gzip; CSS 19.79 kB / 5.53 kB gzip. |
+| `npm.cmd test -- --run` | Passed: 39 test files, 213 tests, 0 failures. |
+| `npm.cmd run build` | Passed: Vite 8.1.4; JS 312.04 kB / 94.83 kB gzip; CSS 22.85 kB / 6.22 kB gzip. |
 | Live HTTP | Vite returned HTTP 200. |
 | Installed Chrome fallback | Passed at 430x784: Home ambient screen, Level 1 board entrance, and a real pointer shot. No gameplay console errors; one existing missing static resource returned 404. |
 
 ## Performance observations
 
 - Maximum active particles: 320.
-- Normal pop particle budget: 3-4 sparks per removed bubble; larger groups use bounded 4-particle bursts and the shared pool.
+- Normal pop particle budget: 4 sparks plus 2 fragments per removed bubble; reduced motion uses 2 sparks plus 1 fragment, larger groups use up to 6 sparks, and the shared pool remains capped at 320 particles.
 - Maximum projectile trail samples: 8.
+- Wall-bounce accents are one short pooled effect per authoritative contact; repeated bounces use the existing bounded particle pool and never create DOM nodes.
 - Maximum trajectory dots: 40.
 - Board entrance duration: 520ms normal, 180ms reduced motion, independent of 59-200 board count through row-banded progress.
 - Presentation event/effect, falling, trail, and particle storage are bounded; no per-effect timers or DOM particles were added.
-- Home ambient element count: 6 existing bubbles; depth layers: 3; configured drift durations: 18s, 22s, 29s, 34s, 38s, 46s.
+- Home ambient element count: 6 existing bubbles; depth layers: 3; configured drift durations: 28s, 34s, 42s, 46s, 52s, 64s.
 - Home animation uses CSS transforms/opacity and does not cause React/map rerenders.
 - Production bundle increased from the Phase 15 baseline of 296.87 kB / 90.50 kB gzip JS to 306.99 kB / 93.56 kB gzip JS (+10.12 kB / +3.06 kB gzip); CSS increased from 18.80 kB / 5.30 kB gzip to 19.79 kB / 5.53 kB gzip.
 
 ## Mobile and Home QA
 
-At 430x784, the Home Dashboard remained readable with slow ambient orb drift, fixed HUD/nav, and clickable Play. Level 1 showed the HUD-safe ceiling rail, dense round-bubble board, fixed shooter, short trajectory dots, and smooth entrance. A real shot decremented shots and placed the projectile/bubble through the existing authoritative flow; delayed screenshots showed no disappearing-shot regression, clipping, or overlay. The Phase 15 Chrome matrix already covered Levels 5, 6, 16, 31, 61, and 10,000; Phase 16 changed only presentation around those same level authorities.
+At 430x784, the Home Dashboard remained readable with slow ambient orb drift, fixed HUD/nav, and clickable Play. Level 1 showed the mission-first HUD with only Pause/Shots in the header, a visual Clear All bubble card, the HUD-safe ceiling rail, dense round-bubble board, fixed shooter, short trajectory dots, and smooth entrance. Real shallow-angle pointer shots decremented shots and placed the projectile through the existing authoritative flow. The Phase 15 Chrome matrix already covered Levels 5, 6, 16, 31, 61, and 10,000; Phase 16 changed only presentation around those same level authorities.
 
 ## Known issues
 

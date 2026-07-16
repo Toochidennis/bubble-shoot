@@ -13,6 +13,13 @@ describe('player-facing gameplay presentation mapping', () => {
     expect(missionDisplay({ ...base, type: 'CLEAR_MARKED' }).label).not.toContain('CLEAR_')
   })
 
+  it('presents objective progress as a countdown with a target bubble color', () => {
+    const pop = missionDisplay({ ...base, type: 'POP_COLOR', color: 'red' })
+    expect(pop.progress).toBe('2')
+    expect(pop.bubbleColor).toBe('red')
+    expect(missionDisplay({ ...base, type: 'DROP_BUBBLES' }).bubbleColor).toBe('green')
+  })
+
   it('derives compact star progress from authoritative score thresholds', () => {
     expect(starThresholdProgress(49, { one: 50, two: 100, three: 150 })).toEqual([false, false, false])
     expect(starThresholdProgress(100, { one: 50, two: 100, three: 150 })).toEqual([true, true, false])

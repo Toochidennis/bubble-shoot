@@ -285,7 +285,7 @@ describe('board collision query', () => {
 describe('default physics constants', () => {
   it('provide a valid projectile configuration', () => {
     expect(DEFAULT_PROJECTILE_CONFIG.speed).toBeGreaterThan(0)
-    expect(DEFAULT_PROJECTILE_CONFIG.speed).toBe(600)
+    expect(DEFAULT_PROJECTILE_CONFIG.speed).toBe(1_000)
     expect(DEFAULT_PROJECTILE_CONFIG.radius).toBeGreaterThan(0)
   })
 })

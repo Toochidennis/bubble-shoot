@@ -445,6 +445,20 @@ This log records meaningful architectural, product, scope, and source-control de
 - **Status:** Implemented; owner visual review pending
 - The default projectile speed is raised from `520` to `600` logical units per second. This makes bubble travel and wall bounces feel brisker on touch while retaining readable swept-collision behavior and deterministic stepping. No collision, aim, or bounce geometry was changed.
 
+## DEC-0061 - Faster mobile projectile travel
+
+- **Date:** 2026-07-15
+- **Status:** Implemented; owner visual review pending
+- The default projectile speed is raised from `960` to `1,000` logical units per second after mobile gameplay review found bubble travel too slow. Swept collision, max-step subdivision, wall reflection, ceiling contact, snap selection, trajectory geometry, and shot timing authority remain unchanged.
+
+## DEC-0062 - Mission-first gameplay hub
+
+- **Date:** 2026-07-15
+- **Status:** Implemented; owner visual review pending
+- The active gameplay hub omits Level, Score, and Star progress. Completion presents those results in the terminal popup, with earned stars revealed sequentially.
+- Mission objectives are represented by visible bubble target cards with modern inline SVG action icons, short player-facing instructions, and authoritative countdown values. One or two objectives remain independently visible; no mission logic or bubble identity is moved into presentation.
+- The hub uses a compact Pause/Shots top row, equal-width objective cards, restrained glass borders, and a presentation-only conic progress ring. Narrow screens stack cards rather than allowing text to clip or cover the ceiling rail.
+
 ## DEC-0059 - Phase 15 live drag-render boundary
 
 - **Date:** 2026-07-14
@@ -607,6 +621,9 @@ This log records meaningful architectural, product, scope, and source-control de
 - **Status:** Implemented; owner review pending before Phase 17
 - Phase 16 is presentation-only. `GameplayPresentationTimeline` consumes accepted shots, authoritative projectile positions, wall contacts, turn results, matched descriptors, floating descriptors, score threshold crossings, and terminal state without deciding gameplay outcomes.
 - Normal shots remain calm. Match, large-match, and floating-drop intensity scales through deterministic effect counts, brief pulses, bounded same-color particles, and accelerated falling copies. No camera shake, audio, WebGL, DOM particles, or balance changes were introduced.
+- Match-pop feedback uses a synchronized cluster pulse, distance-ordered timing, restrained squash/expansion, an external same-color ring, a short flash, ray sparks, and diamond fragments. These are presentation copies only; the authoritative board remains the sole source of bubble identity and removal.
+- Projectile wall feedback is presentation-only and anchored to authoritative `WallBounceEvent` contacts. It uses a small directional squash/rebound stretch, wall-aligned color pulse, and bounded same-color sparks while preserving the real reflected projectile, trajectory, speed, and collision rules.
 - Presentation state uses delta-time, a 320-particle pool, eight-sample projectile trail, forty-dot trajectory cap, bounded effects/falling collections, and reset-safe level boundaries. Pause freezes the presentation clock; reduced motion shortens entrance, removes drift, suppresses most particles, and disables trajectory shimmer.
 - Score count-up, mission pulses, star threshold sparks, and 240ms terminal breathing delay are display-only. Progression and mission authorities remain unchanged.
-- Home animation reuses only its six existing ambient bubbles, two existing glow fields, and existing sparkle layer. Their deterministic 18-46 second drift profiles use pointer-events none and cannot affect map virtualization, scrolling, or navigation. Audio remains deferred.
+- Successful WON overlays intentionally omit Replay and prioritize Next Level plus Home; Retry remains exclusive to LOST/out-of-shots feedback so terminal actions match the player outcome.
+- Home animation reuses only its six existing ambient bubbles, two existing glow fields, and existing sparkle layer. Their deterministic 28-64 second near/mid/far drift profiles add independent curved vectors, tiny rotation, and restrained scale breathing through CSS transforms; pointer-events none ensures they cannot affect map virtualization, scrolling, or navigation. The redundant Home `Best stars 0/3` status is omitted; star records remain visible on level nodes and the selected-level context where useful. Audio remains deferred.

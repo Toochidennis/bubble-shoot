@@ -18,6 +18,8 @@ export interface PresentationParticle {
   age: number
   readonly lifetime: number
   readonly scale: number
+  rotation: number
+  readonly spin: number
 }
 
 export interface PresentationTrailSample {
@@ -32,6 +34,9 @@ export interface PresentationBubbleEffect {
   readonly bubble: BubbleDescriptor
   readonly scale: number
   readonly alpha: number
+  readonly ringScale: number
+  readonly ringAlpha: number
+  readonly flashAlpha: number
 }
 
 export interface PresentationFallingBubble {
@@ -42,6 +47,24 @@ export interface PresentationFallingBubble {
   readonly velocityY: number
   readonly driftX: number
   readonly age: number
+  readonly scale: number
+  readonly alpha: number
+  readonly rotation: number
+}
+
+export interface PresentationMatchPulse {
+  readonly position: Point2D
+  readonly color: BubbleColor
+  readonly progress: number
+  readonly strength: number
+}
+
+export interface PresentationWallBounce {
+  readonly position: Point2D
+  readonly wall: 'left' | 'right'
+  readonly color: BubbleColor
+  readonly progress: number
+  readonly strength: number
 }
 
 export interface GameplayPresentationFrame {
@@ -55,10 +78,12 @@ export interface GameplayPresentationFrame {
   readonly particles: readonly PresentationParticle[]
   readonly bubbleEffects: readonly PresentationBubbleEffect[]
   readonly fallingBubbles: readonly PresentationFallingBubble[]
+  readonly matchPulse: PresentationMatchPulse | null
+  readonly wallBounce: PresentationWallBounce | null
 }
 
 interface TimedEffect {
-  readonly kind: 'recoil' | 'wall' | 'ceiling' | 'snap' | 'pop' | 'mission' | 'star'
+  readonly kind: 'recoil' | 'wall' | 'ceiling' | 'snap' | 'pop' | 'matchPulse' | 'mission' | 'star'
   readonly startedAt: number
   readonly duration: number
   readonly position?: Point2D
@@ -66,6 +91,7 @@ interface TimedEffect {
   readonly bubble?: BubbleDescriptor
   readonly color?: BubbleColor
   readonly strength?: number
+  readonly wall?: 'left' | 'right'
 }
 
 interface MutableFallingBubble {
@@ -77,6 +103,7 @@ interface MutableFallingBubble {
   readonly driftX: number
   age: number
   readonly delay: number
+  rotation: number
 }
 
 const DEFAULT_MAX_PARTICLES = 320
@@ -145,6 +172,7 @@ export class GameplayPresentationTimeline {
     this.particles.length = 0
     this.trail.length = 0
     this.falling.length = 0
+    this.nextParticleId = 1
     this.lastProjectilePosition = null
   }
 
@@ -192,7 +220,7 @@ export class GameplayPresentationTimeline {
   }
 
   public emitWallBounce(event: WallBounceEvent, bubble: BubbleDescriptor): void {
-    this.effects.push({ kind: 'wall', startedAt: this.currentTime, duration: .12, position: event.position, color: bubble.color, strength: .7 })
+    this.effects.push({ kind: 'wall', startedAt: this.currentTime, duration: .14, position: event.position, color: bubble.color, bubble, wall: event.wall, strength: .7 })
     for (let index = 0; index < (this.reducedMotion ? 1 : 3); index += 1) {
       const direction = event.wall === 'left' ? 1 : -1
       const angle = (hashSeed(this.levelId, index, event.position.x, event.position.y) - .5) * 1.2
@@ -210,24 +238,31 @@ export class GameplayPresentationTimeline {
     const match = turn.match
     if (match?.ok === true && match.matched) {
       const origin = match.origin
+      const originPosition = getCellCenter(grid, origin)
       const removed = match.removedBubbles ?? []
+      this.effects.push({ kind: 'matchPulse', startedAt: this.currentTime, duration: .34, position: originPosition, color: match.color, strength: Math.min(1.5, .72 + match.clusterSize / 10) })
       for (const removedBubble of removed) {
         const distance = hexDistance(origin, removedBubble.coordinate)
-        const delay = .05 + distance * .016
+        const delay = .045 + distance * .024
         this.effects.push({
           kind: 'pop',
           startedAt: this.currentTime + delay,
-          duration: .18,
+          duration: .27,
           position: getCellCenter(grid, removedBubble.coordinate),
           key: coordinateKey(removedBubble.coordinate),
           bubble: removedBubble.bubble,
           color: removedBubble.bubble.color,
           strength: Math.min(1.4, .65 + match.clusterSize / 12),
         })
-        const particleCount = match.clusterSize >= 10 ? 4 : 3
+        const particleCount = this.reducedMotion ? 2 : match.clusterSize >= 10 ? 6 : 4
         for (let index = 0; index < particleCount; index += 1) {
           const angle = hashSeed(this.levelId, turn.turnNumber, removedBubble.coordinate.row, removedBubble.coordinate.column, index) * Math.PI * 2
-          this.spawnParticle('POP_SPARK', removedBubble.bubble.color, getCellCenter(grid, removedBubble.coordinate), { x: Math.cos(angle) * (24 + index * 5), y: Math.sin(angle) * (24 + index * 5) }, .22 + (index % 2) * .04, .72)
+          this.spawnParticle('POP_SPARK', removedBubble.bubble.color, getCellCenter(grid, removedBubble.coordinate), { x: Math.cos(angle) * (28 + index * 5), y: Math.sin(angle) * (28 + index * 5) }, .26 + (index % 2) * .04, .72)
+        }
+        const fragmentCount = this.reducedMotion ? 1 : 2
+        for (let index = 0; index < fragmentCount; index += 1) {
+          const angle = hashSeed(this.levelId, turn.turnNumber + 7, removedBubble.coordinate.row, removedBubble.coordinate.column, index) * Math.PI * 2
+          this.spawnParticle('POP_FRAGMENT', removedBubble.bubble.color, getCellCenter(grid, removedBubble.coordinate), { x: Math.cos(angle) * (18 + index * 8), y: Math.sin(angle) * (18 + index * 8) }, .3, .82)
         }
       }
       this.effects.push({ kind: 'mission', startedAt: this.currentTime, duration: .24, color: match.color, strength: Math.min(1.5, match.clusterSize / 4) })
@@ -235,7 +270,7 @@ export class GameplayPresentationTimeline {
     if (floating?.removedAny) {
       for (const removed of floating.removedBubbles) {
         const index = this.falling.length
-        this.falling.push({ id: `${turn.turnNumber}:${removed.coordinate.row}:${removed.coordinate.column}`, coordinate: removed.coordinate, bubble: removed.bubble, position: removed.center, velocityY: 42 + index * 5, driftX: this.reducedMotion ? 0 : (hashSeed(this.levelId, turn.turnNumber, removed.coordinate.row, removed.coordinate.column) - .5) * 22, age: 0, delay: .08 + Math.min(.08, index * .004) })
+        this.falling.push({ id: `${turn.turnNumber}:${removed.coordinate.row}:${removed.coordinate.column}`, coordinate: removed.coordinate, bubble: removed.bubble, position: removed.center, velocityY: 42 + index * 5, driftX: this.reducedMotion ? 0 : (hashSeed(this.levelId, turn.turnNumber, removed.coordinate.row, removed.coordinate.column) - .5) * 22, age: 0, delay: .08 + Math.min(.08, index * .004), rotation: (hashSeed(this.levelId, removed.coordinate.row, removed.coordinate.column) - .5) * .2 })
       }
       const firstFloating = floating.removedBubbles[0]
       if (firstFloating !== undefined) this.effects.push({ kind: 'ceiling', startedAt: this.currentTime, duration: .3, position: firstFloating.center, strength: Math.min(1.6, floating.removedCount / 12) })
@@ -264,6 +299,7 @@ export class GameplayPresentationTimeline {
       particle.age += delta
       particle.position = { x: particle.position.x + particle.velocity.x * delta, y: particle.position.y + particle.velocity.y * delta }
       particle.velocity = { x: particle.velocity.x * .97, y: particle.velocity.y * .97 + 45 * delta }
+      particle.rotation += particle.spin * delta
     }
     for (const bubble of this.falling) {
       bubble.age += delta
@@ -284,9 +320,28 @@ export class GameplayPresentationTimeline {
     for (const effect of activeEffects) {
       if (effect.kind === 'pop' && effect.position !== undefined && effect.bubble !== undefined && effect.key !== undefined) {
         const progress = clamp((this.currentTime - effect.startedAt) / effect.duration)
-        bubbleEffects.push({ key: effect.key, position: effect.position, bubble: effect.bubble, scale: 1.02 + Math.sin(progress * Math.PI) * .07, alpha: 1 - easeOut(progress) })
+        const anticipation = clamp(progress / .24)
+        const popProgress = clamp((progress - .16) / .84)
+        bubbleEffects.push({
+          key: effect.key,
+          position: effect.position,
+          bubble: effect.bubble,
+          scale: .98 - anticipation * .06 + easeOut(popProgress) * .2,
+          alpha: 1 - easeOut(popProgress),
+          ringScale: 1 + easeOut(popProgress) * 1.55,
+          ringAlpha: (1 - popProgress) * .82,
+          flashAlpha: (1 - clamp(progress / .42)) * .58,
+        })
       }
     }
+    const pulseEffect = activeEffects.find((effect) => effect.kind === 'matchPulse' && effect.position !== undefined && effect.color !== undefined)
+    const matchPulse = pulseEffect?.position !== undefined && pulseEffect.color !== undefined
+      ? { position: pulseEffect.position, color: pulseEffect.color, progress: clamp((this.currentTime - pulseEffect.startedAt) / pulseEffect.duration), strength: pulseEffect.strength ?? 1 }
+      : null
+    const wallEffect = [...activeEffects].reverse().find((effect) => effect.kind === 'wall' && effect.position !== undefined && effect.color !== undefined && effect.wall !== undefined)
+    const wallBounce = wallEffect?.position !== undefined && wallEffect.color !== undefined && wallEffect.wall !== undefined
+      ? { position: wallEffect.position, wall: wallEffect.wall, color: wallEffect.color, progress: clamp((this.currentTime - wallEffect.startedAt) / wallEffect.duration), strength: wallEffect.strength ?? .7 }
+      : null
     return {
       time: this.currentTime,
       entranceProgress: clamp(this.entranceTime / this.entranceDuration),
@@ -297,14 +352,17 @@ export class GameplayPresentationTimeline {
       trail: this.trail.map((sample) => ({ ...sample })),
       particles: this.particles.map((particle) => ({ ...particle, position: { ...particle.position }, velocity: { ...particle.velocity } })),
       bubbleEffects,
-      fallingBubbles: this.falling.filter((bubble) => bubble.age >= bubble.delay).map((bubble) => ({ id: bubble.id, coordinate: bubble.coordinate, bubble: bubble.bubble, position: { ...bubble.position }, velocityY: bubble.velocityY, driftX: bubble.driftX, age: bubble.age })),
+      fallingBubbles: this.falling.filter((bubble) => bubble.age >= bubble.delay).map((bubble) => ({ id: bubble.id, coordinate: bubble.coordinate, bubble: bubble.bubble, position: { ...bubble.position }, velocityY: bubble.velocityY, driftX: bubble.driftX, age: bubble.age, scale: .82 + Math.min(.1, (bubble.age - bubble.delay) * .08), alpha: Math.max(.1, 1 - Math.max(0, bubble.position.y - this.viewportHeight * .52) / (this.viewportHeight * .7)), rotation: bubble.rotation })),
+      matchPulse,
+      wallBounce,
     }
   }
 
   private spawnParticle(type: PresentationParticleType, color: BubbleColor, position: Point2D, velocity: Point2D, lifetime: number, scale: number): void {
     if (this.reducedMotion && type !== 'STAR_SPARK' && type !== 'POP_SPARK') return
     if (this.particles.length >= this.maxParticles) this.particles.shift()
-    this.particles.push({ id: this.nextParticleId++, type, color, position: { ...position }, velocity: { ...velocity }, age: 0, lifetime, scale })
+    const particleId = this.nextParticleId++
+    this.particles.push({ id: particleId, type, color, position: { ...position }, velocity: { ...velocity }, age: 0, lifetime, scale, rotation: hashSeed(this.levelId, particleId, position.x, position.y) * Math.PI * 2, spin: (hashSeed(this.levelId, particleId, velocity.x, velocity.y) - .5) * 8 })
   }
 
   private get entranceDuration(): number {
@@ -315,7 +373,7 @@ export class GameplayPresentationTimeline {
     for (let index = this.effects.length - 1; index >= 0; index -= 1) {
       const effect = this.effects[index]
       if (effect === undefined) continue
-      if (effect.startedAt + effect.duration < this.currentTime && effect.kind !== 'recoil') this.effects.splice(index, 1)
+      if (effect.startedAt + effect.duration < this.currentTime) this.effects.splice(index, 1)
     }
     for (let index = this.particles.length - 1; index >= 0; index -= 1) {
       const particle = this.particles[index]
