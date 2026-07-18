@@ -23,18 +23,40 @@ function missionIcon(type: MissionObjectiveProgress['type']): 'target' | 'drop' 
   return 'target'
 }
 
+function MissionAllBubble() {
+  return (
+    <svg className="mission-all-bubble" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <circle cx="15" cy="14" r="8" fill="#d93654" stroke="#ff98a8" strokeWidth="1.2" />
+      <circle cx="33" cy="14" r="8" fill="#34b844" stroke="#a9ff86" strokeWidth="1.2" />
+      <circle cx="14" cy="34" r="8" fill="#9b4cff" stroke="#e0b5ff" strokeWidth="1.2" />
+      <circle cx="34" cy="34" r="8" fill="#e3a624" stroke="#ffe28a" strokeWidth="1.2" />
+      <circle cx="24" cy="24" r="12" fill="#237ddd" stroke="#9fddff" strokeWidth="1.4" />
+      <circle cx="20" cy="19" r="3.5" fill="#fff" opacity=".72" />
+      <circle cx="11.8" cy="11.1" r="1.7" fill="#fff" opacity=".66" />
+      <circle cx="29.8" cy="11.1" r="1.7" fill="#fff" opacity=".58" />
+      <circle cx="11" cy="31" r="1.6" fill="#fff" opacity=".52" />
+      <circle cx="31" cy="31" r="1.6" fill="#fff" opacity=".52" />
+    </svg>
+  )
+}
+
 function MissionObjectiveCard({ objective, pulsing }: { readonly objective: MissionObjectiveProgress; readonly pulsing: boolean }) {
   const display = missionDisplay(objective)
   const completionPercent = Math.min(100, Math.max(0, (objective.progress / Math.max(1, objective.target)) * 100))
   return (
-    <div className={`mission-card${display.completed ? ' is-complete' : ''}${pulsing ? ' is-pulsing' : ''}`} aria-label={`${display.label}, ${display.progress}`}>
-      <div className={`mission-target-bubble mission-target-bubble--${display.bubbleColor}`}>
+    <div
+      className={`mission-card${display.completed ? ' is-complete' : ''}${pulsing ? ' is-pulsing' : ''}`}
+      role="img"
+      aria-label={`${display.label}: ${display.progress} remaining`}
+      title={`${display.label}: ${display.progress} remaining`}
+    >
+      <div className={`mission-target-bubble mission-target-bubble--${display.bubbleColor}${objective.type === 'CLEAR_ALL_BUBBLES' ? ' mission-target-bubble--all' : ''}`}>
         <span className="mission-progress-ring" style={{ '--mission-progress': `${completionPercent}%` } as CSSProperties} />
-        <span className={`hud-bubble hud-bubble--${display.bubbleColor}`} />
+        {objective.type === 'CLEAR_ALL_BUBBLES' ? <MissionAllBubble /> : <span className={`hud-bubble hud-bubble--${display.bubbleColor}`} />}
         {objective.type === 'CLEAR_MARKED' ? <span className="mission-target-ring" /> : null}
         <span className="mission-target-icon"><GameIcon name={missionIcon(objective.type)} size={14} /></span>
       </div>
-      <div className="mission-card-copy"><span>{display.label}</span><strong>{display.progress}</strong><small>LEFT</small></div>
+      <strong className="mission-progress-count" aria-hidden="true">{display.progress}</strong>
     </div>
   )
 }
