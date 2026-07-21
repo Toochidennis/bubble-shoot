@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { GameIcon } from '../components/GameIcon'
 import type { ProgressionRepository } from '../game/progression/ProgressionRepository'
@@ -6,7 +6,6 @@ import { MAX_SUPPORTED_LEVEL_ID } from '../game/progression/types'
 import { DEFAULT_MAP_LAYOUT, getMapContentHeight, getMapFocusScrollTop, getMapNodeLayout, getVisibleLevelRange } from '../game/map/mapLayout'
 import { getMapLevelState, getQuickPlayLevel } from '../game/map/progressionView'
 import { gameAudio } from '../game/audio/gameAudio'
-import { HOME_AMBIENT_ELEMENTS } from './homeAmbient'
 
 interface MapScreenProps {
   readonly progression: ProgressionRepository
@@ -60,16 +59,8 @@ export function MapScreen({ progression, onHome, onProfile, onLaunchLevel }: Map
 
   return (
     <main className="map-screen" aria-label="Bubble Shooter level map">
-      <div className="dashboard-ambient" aria-hidden="true">
-        <span className="ambient-glow ambient-glow--one" />
-        <span className="ambient-glow ambient-glow--two" />
-        {HOME_AMBIENT_ELEMENTS.map((bubble) => <span key={`${bubble.left}-${bubble.top}`} className={`ambient-bubble ambient-bubble--${bubble.color} ambient-bubble--${bubble.depth}`} style={{ left: bubble.left, top: bubble.top, width: bubble.size, height: bubble.size, '--ambient-duration': bubble.duration, '--ambient-delay': bubble.delay, '--ambient-drift-x': bubble.driftX, '--ambient-drift-y': bubble.driftY, '--ambient-rotate': bubble.driftRotate, '--ambient-scale': bubble.driftScale, '--ambient-loop-in-x': bubble.loopInX, '--ambient-loop-in-y': bubble.loopInY, '--ambient-loop-out-x': bubble.loopOutX, '--ambient-loop-out-y': bubble.loopOutY } as CSSProperties} />)}
-      </div>
-
       <header className="map-screen-header">
-        <button type="button" className="map-screen-back" aria-label="Back to Home" onClick={() => { playUi(); onHome() }}><GameIcon name="home" size={18} /></button>
         <div className="map-screen-title"><span>LEVEL JOURNEY</span><strong>Map</strong></div>
-        <button type="button" className="map-screen-profile" aria-label="Open your profile" onClick={() => { playUi(); onProfile() }}><GameIcon name="user" size={19} /></button>
       </header>
 
       <section className="map-screen-summary" aria-label={`Selected level ${selectedLevel}`}>

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { GameIcon } from '../components/GameIcon'
-import { bubbleShooterFlagDisplay } from '../game/catalog/bubbleShooterCatalogFormatting'
-import type { BubbleShooterCatalogState, BubbleShooterCountryOption } from '../game/catalog/bubbleShooterCatalogTypes'
+import { CountryFlag } from '../components/CountryFlag'
+import type { BubbleShooterCatalogState } from '../game/catalog/bubbleShooterCatalogTypes'
 import type { BubbleShooterProfile } from '../game/profile/bubbleShooterProfile'
 import { BUBBLE_SHOOTER_AVATARS } from '../game/profile/avatarCatalog'
 import { gameAudio } from '../game/audio/gameAudio'
@@ -16,10 +16,6 @@ interface ProfileScreenProps {
 
 function matches(value: string, query: string): boolean {
   return value.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
-}
-
-function countryLabel(country: BubbleShooterCountryOption): string {
-  return `${country.emoji ?? ''} ${country.name}`.trim()
 }
 
 export function ProfileScreen({ profile, catalog, onBack, onSave }: ProfileScreenProps) {
@@ -58,7 +54,7 @@ export function ProfileScreen({ profile, catalog, onBack, onSave }: ProfileScree
       <div className="profile-scroll">
         <section className="profile-identity-panel" aria-labelledby="profile-identity-heading">
           <div className="profile-identity-preview"><img src={`/avatars/${draft.avatarId}.png`} alt="Selected avatar" /><span className="profile-identity-glow" /></div>
-          <div><span className="profile-kicker">PLAYER PROFILE</span><h2 id="profile-identity-heading">{draft.displayName || 'Player'}</h2><p>{selectedCountry ? `${bubbleShooterFlagDisplay(selectedCountry.emoji ?? selectedCountry.code)} ${selectedCountry.name}` : 'Choose your country to personalize your profile.'}</p></div>
+          <div><span className="profile-kicker">PLAYER PROFILE</span><h2 id="profile-identity-heading">{draft.displayName || 'Player'}</h2><p className="profile-identity-country">{selectedCountry ? <><CountryFlag country={selectedCountry} className="country-flag--inline" />{selectedCountry.name}</> : 'Choose your country to personalize your profile.'}</p></div>
         </section>
 
         <section className="profile-section" aria-labelledby="avatar-heading">
@@ -75,12 +71,12 @@ export function ProfileScreen({ profile, catalog, onBack, onSave }: ProfileScree
             <div className="profile-field profile-country-picker" ref={countryPickerRef}>
               <span>Country</span>
               <button type="button" className={`profile-country-trigger${countryOpen ? ' is-open' : ''}`} aria-haspopup="listbox" aria-expanded={countryOpen} aria-controls="country-options" disabled={catalog.status === 'loading'} onClick={() => { gameAudio.unlock(); gameAudio.play('uiClick'); setCountryOpen((open) => !open); setCountryQuery('') }}>
-                <span>{selectedCountry ? countryLabel(selectedCountry) : 'Select country'}</span><GameIcon name="chevron" size={14} />
+                {selectedCountry ? <span className="profile-country-current"><CountryFlag country={selectedCountry} /><span className="profile-country-current-name">{selectedCountry.name}</span></span> : <span>Select country</span>}<GameIcon name="chevron" size={14} />
               </button>
               {countryOpen ? <div className="profile-country-menu" id="country-options" role="listbox" aria-label="Countries">
                 <input className="profile-country-search" type="search" autoFocus value={countryQuery} onChange={(event) => setCountryQuery(event.target.value)} placeholder="Search countries" aria-label="Search countries" />
                 <div className="profile-country-options">
-                  {filteredCountries.length > 0 ? filteredCountries.map((country) => <button key={country.code} type="button" role="option" aria-selected={draft.countryCode === country.code} className={`profile-country-option${draft.countryCode === country.code ? ' is-selected' : ''}`} onClick={() => { gameAudio.unlock(); gameAudio.play('uiClick'); setDraft((current) => ({ ...current, countryCode: country.code })); setCountryOpen(false); setCountryQuery('') }}><span className="profile-country-option-flag">{bubbleShooterFlagDisplay(country.emoji ?? country.code)}</span><span className="profile-country-option-copy"><strong>{country.name}</strong><small>{country.code}</small></span></button>) : <p className="profile-country-empty">No countries match that search.</p>}
+                  {filteredCountries.length > 0 ? filteredCountries.map((country) => <button key={country.code} type="button" role="option" aria-selected={draft.countryCode === country.code} className={`profile-country-option${draft.countryCode === country.code ? ' is-selected' : ''}`} onClick={() => { gameAudio.unlock(); gameAudio.play('uiClick'); setDraft((current) => ({ ...current, countryCode: country.code })); setCountryOpen(false); setCountryQuery('') }}><CountryFlag country={country} /><span className="profile-country-option-copy"><strong>{country.name}</strong></span></button>) : <p className="profile-country-empty">No countries match that search.</p>}
                 </div>
               </div> : null}
             </div>

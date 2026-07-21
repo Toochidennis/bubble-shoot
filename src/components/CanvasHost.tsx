@@ -260,6 +260,14 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
           APP_CONFIG.canvas.maxDevicePixelRatio,
         )
         applyCanvasMetrics(canvas, context, nextMetrics)
+      // Re-centre the board to the real canvas size (the layout was built before
+      // the canvas was measured, so a portrait-locked/narrower canvas would leave
+      // the board offset and clipped). Keeps board + shooter + physics aligned.
+      gameplayLayoutRef.current = sessionRef.current.applyViewport({
+          width: nextMetrics.logicalWidth,
+          height: nextMetrics.logicalHeight,
+          pixelRatio: nextMetrics.pixelRatio,
+      })
       sessionRef.current.gameplay.shooter.setViewport({
           width: nextMetrics.logicalWidth,
           height: nextMetrics.logicalHeight,

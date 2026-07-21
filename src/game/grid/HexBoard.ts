@@ -17,10 +17,26 @@ import type {
 export class HexBoard<T> {
   private readonly occupancy = new Map<string, T>()
 
-  public constructor(public readonly config: HexGridConfig) {}
+  public constructor(public config: HexGridConfig) {}
 
   public get size(): number {
     return this.occupancy.size
+  }
+
+  /**
+   * Swaps in a grid config with identical row dimensions, re-centring/rescaling
+   * the board to a new viewport without disturbing occupancy (which is keyed by
+   * row/column, so cell centres are derived live from the config).
+   */
+  public relayout(config: HexGridConfig): void {
+    if (
+      config.rowCount !== this.config.rowCount ||
+      config.evenRowWidth !== this.config.evenRowWidth ||
+      config.oddRowWidth !== this.config.oddRowWidth
+    ) {
+      throw new RangeError('relayout requires identical grid dimensions to preserve occupancy.')
+    }
+    this.config = config
   }
 
   public isValid(coordinate: GridCoordinate): boolean {

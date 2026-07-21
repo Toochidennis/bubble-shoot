@@ -55,7 +55,7 @@ export class LevelSession {
   private contentInvariant: EmptyBoardMissionInvariantDiagnostic | null = null
   public gameplay: GameplaySession
   public readonly progression: ProgressionRepository
-  private readonly layout: GameplayLayout
+  private layout: GameplayLayout
 
   public constructor(
     levelId = 1,
@@ -119,6 +119,18 @@ export class LevelSession {
       contentInvariant: this.contentInvariant,
       gameplay: this.gameplay.snapshot(),
     }
+  }
+
+  /**
+   * Re-centres the board to the actual canvas size and adopts that layout for
+   * subsequent levels too. CanvasHost calls this on mount/resize so the board
+   * tracks the real viewport width the same way the shooter does, rather than
+   * the width guessed before the canvas was measured.
+   */
+  public applyViewport(viewport: LogicalViewport): GameplayLayout {
+    this.layout = createGameplayLayout(viewport)
+    this.gameplay.board.relayout(this.layout.grid)
+    return this.layout
   }
 
   public updateAim(pointer: Point2D): boolean {
