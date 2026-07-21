@@ -12,6 +12,7 @@ import type { BubbleColor } from '../game/shooter/types'
 import type { BubbleShooterCountryOption } from '../game/catalog/bubbleShooterCatalogTypes'
 import type { BubbleShooterProfile } from '../game/profile/bubbleShooterProfile'
 import { CountryFlag } from '../components/CountryFlag'
+import { formatCompactCount } from '../utils/formatCount'
 import { useReducedMotion } from '../app/useReducedMotion'
 
 interface HomeDashboardProps {
@@ -74,7 +75,7 @@ export function HomeDashboard({ profile, countries, progression, onLaunchLevel, 
           {profileCountry ? <CountryFlag country={profileCountry} className="home-avatar-flag" /> : <span className="home-avatar-flag" aria-label="Country not selected">🌐</span>}
         </button>
         <div className="home-topbar-right">
-          <span className="home-pill home-pill--stars" aria-label={`${totalStars} stars collected`}><i>★</i>{totalStars.toLocaleString()}</span>
+          <span className="home-pill home-pill--stars" aria-label={`${totalStars.toLocaleString()} stars collected`}><i>★</i>{formatCompactCount(totalStars)}</span>
           <button className="home-gear" type="button" aria-label="Open settings" onClick={() => { playUi(); onSettings() }}><GameIcon name="settings" size={22} /></button>
         </div>
       </header>
