@@ -1,4 +1,4 @@
-interface GameIconProps { readonly name: 'home' | 'map' | 'ranking' | 'rewards' | 'settings' | 'user' | 'chevron' | 'back' | 'play' | 'pause' | 'target' | 'drop' | 'clear' | 'score'; readonly size?: number }
+interface GameIconProps { readonly name: 'home' | 'map' | 'ranking' | 'rewards' | 'settings' | 'user' | 'chevron' | 'back' | 'arrowLeft' | 'play' | 'pause' | 'target' | 'drop' | 'clear' | 'score'; readonly size?: number }
 
 export function GameIcon({ name, size = 22 }: GameIconProps) {
   const paths = {
@@ -10,6 +10,7 @@ export function GameIcon({ name, size = 22 }: GameIconProps) {
     user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.7-3.2 3.1-5 7-5s6.3 1.8 7 5" /></>,
     chevron: <path d="m8 4 8 8-8 8" />,
     back: <path d="m15 5-7 7 7 7" />,
+    arrowLeft: <path d="M20 12H5M11 6l-6 6 6 6" />,
     play: <path d="m8 5 11 7-11 7Z" />,
     pause: <path d="M7 5v14M17 5v14" />,
     target: <><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="2.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></>,

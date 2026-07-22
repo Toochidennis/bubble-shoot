@@ -24,6 +24,17 @@ export class HexBoard<T> {
   }
 
   /**
+   * Shallow copy with identical occupancy — used by the headless shot solver to
+   * try candidate shots without disturbing the authoritative board. Bubble
+   * values are shared by reference (they are treated as immutable).
+   */
+  public clone(): HexBoard<T> {
+    const copy = new HexBoard<T>(this.config)
+    for (const [key, value] of this.occupancy) copy.occupancy.set(key, value)
+    return copy
+  }
+
+  /**
    * Swaps in a grid config with identical row dimensions, re-centring/rescaling
    * the board to a new viewport without disturbing occupancy (which is keyed by
    * row/column, so cell centres are derived live from the config).

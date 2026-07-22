@@ -8,7 +8,8 @@ import { createSeededRandom } from '../../utils/seededRandom'
 import { deriveGenerationSeed } from './seed'
 import { estimateFloatingPotential, estimateScoreUpper, validateGeneratedLevel } from './validator'
 import { getDifficultyProfile } from './difficulty'
-import { FIRST_GENERATED_LEVEL_ID, GENERATOR_CONFIG_VERSION, GENERATOR_VERSION, MAX_GENERATED_SHOTS, MAX_GENERATION_RETRIES, MAX_SUPPORTED_LEVEL_ID, MIN_GENERATED_SHOTS } from './config'
+import { boardClearPar, computeShotBudget } from './shotBudget'
+import { FIRST_GENERATED_LEVEL_ID, GENERATOR_CONFIG_VERSION, GENERATOR_VERSION, MAX_GENERATION_RETRIES, MAX_SUPPORTED_LEVEL_ID } from './config'
 import type { GeneratedLevelDefinition, GeneratedLevelResult } from './types'
 import type { CuratedBubblePlacement, StarThresholds } from '../levels/types'
 import { analyzeGeneratedBoard } from './analysis'
@@ -100,27 +101,41 @@ function missionFor(
   return pop
 }
 
-function missionEffort(configuration: MissionConfiguration): number {
-  return normalizeMissionObjectives(configuration).reduce((effort, objective) => {
-    if (objective.type === 'POP_COLOR') return effort + objective.targetCount / 3
-    if (objective.type === 'DROP_BUBBLES') return effort + objective.targetCount * 1.5
-    if (objective.type === 'CLEAR_MARKED') return effort + objective.targetCount / 2
-    if (objective.type === 'REACH_SCORE') return effort + objective.targetScore / 60
-    return effort
+/**
+ * Shots a competent player needs per objective, CALIBRATED against the headless
+ * solver's real self-play (see shotBudgetValidation.test). Marked/score-set
+ * missions cost far more in setup than their raw target implies (you must reach
+ * and build matches around scattered targets); pop/reach cost less.
+ */
+function missionShotPar(configuration: MissionConfiguration): number {
+  return normalizeMissionObjectives(configuration).reduce((par, objective) => {
+    // Pop/reach carry a mostly-fixed setup cost with light target scaling;
+    // marked scales harder (reach + build a match around each scattered target).
+    if (objective.type === 'POP_COLOR') return par + objective.targetCount / 2.5 + 6
+    if (objective.type === 'DROP_BUBBLES') return par + objective.targetCount * 2 + 3
+    if (objective.type === 'CLEAR_MARKED') return par + objective.targetCount * 2 + 6
+    if (objective.type === 'REACH_SCORE') return par + objective.targetScore / 60 + 4
+    return par
   }, 0)
 }
 
+/**
+ * Shots for a generated level from the shared par×margin model. For CLEAR_ALL
+ * the par is the whole-board clear; for target missions (pop/drop/marked/score)
+ * it's the mission's shot-effort, floored to a fraction of a board clear so the
+ * player still has room to set up shots.
+ */
 function estimateShotLimit(
   profile: ReturnType<typeof getDifficultyProfile>,
   analysis: ReturnType<typeof analyzeGeneratedBoard>,
   paletteSize: number,
   mission: MissionConfiguration,
+  levelId: number,
 ): number {
-  const generosity = profile.difficulty === 'recovery' ? 10 : profile.difficulty === 'easy' ? 9 : profile.difficulty === 'medium' ? 7 : profile.difficulty === 'hard' ? 5 : 4
-  const clusterPenalty = analysis.averageSameColorClusterSize < 2.2 ? 2 : 0
-  const topologyEffort = analysis.formationDepth * .45 + (analysis.validatedDropOpportunity > 0 ? 1 : 2)
-  const estimate = analysis.occupiedCellCount / 3 + paletteSize * .8 + topologyEffort + clusterPenalty + missionEffort(mission) + generosity
-  return Math.max(MIN_GENERATED_SHOTS, Math.min(MAX_GENERATED_SHOTS, Math.round(estimate)))
+  const parShots = mission.type === 'CLEAR_ALL_BUBBLES'
+    ? boardClearPar(analysis.occupiedCellCount, paletteSize, analysis.validatedDropOpportunity)
+    : missionShotPar(mission)
+  return computeShotBudget(parShots, levelId, profile.difficulty)
 }
 
 function candidate(levelId: number, retryAttempt: number): GeneratedLevelDefinition {
@@ -141,7 +156,7 @@ function candidate(levelId: number, retryAttempt: number): GeneratedLevelDefinit
   let analysis = analyzeGeneratedBoard(DEFAULT_HEX_GRID_CONFIG, placements)
   const mission = missionFor(levelId, profile, placements, analysis, seed)
   analysis = analyzeGeneratedBoard(DEFAULT_HEX_GRID_CONFIG, placements)
-  const shotLimit = estimateShotLimit(profile, analysis, palette.length, mission)
+  const shotLimit = estimateShotLimit(profile, analysis, palette.length, mission, levelId)
   const provisional = { startingBubbles: placements, shotLimit } as unknown as GeneratedLevelDefinition
   const upper = estimateScoreUpper(provisional)
   const one = Math.max(10, Math.floor(upper * .35))

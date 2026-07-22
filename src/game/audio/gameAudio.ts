@@ -35,15 +35,9 @@ export const GAME_AUDIO_DEFINITIONS: Readonly<Record<GameAudioEvent, AudioDefini
   // sounding like a toy power-up. Separate variants prevent rapid cascades
   // from repeating one identical transient.
   bubblePop: {
-    sources: [
-      '/audio/impactGlass_light_000.ogg',
-      '/audio/impactGlass_light_001.ogg',
-      '/audio/impactGlass_light_002.ogg',
-      '/audio/impactGlass_light_003.ogg',
-      '/audio/impactGlass_light_004.ogg',
-    ],
-    volume: .24,
-    rate: 1.04,
+    sources: ['/audio/liquid-pop.mp3'],
+    volume: .3,
+    rate: 1,
   },
   matchBurst: {
     sources: [

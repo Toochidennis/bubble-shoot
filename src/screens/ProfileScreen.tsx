@@ -46,9 +46,7 @@ export function ProfileScreen({ profile, catalog, onBack, onSave }: ProfileScree
   return (
     <main className="profile-screen" aria-label="Player profile">
       <header className="profile-header">
-        <button type="button" className="profile-back" onClick={() => { gameAudio.unlock(); gameAudio.play('uiClick'); onBack() }}><GameIcon name="back" size={19} /> Back</button>
-        <div className="profile-title"><span className="profile-title-mark"><GameIcon name="user" size={20} /></span><div><h1>Your Profile</h1><p>Make this bubble journey yours.</p></div></div>
-        <button type="button" className="profile-save profile-save--header" onClick={save}>Save</button>
+        <button type="button" className="profile-back" aria-label="Back to home" onClick={() => { gameAudio.unlock(); gameAudio.play('uiClick'); onBack() }}><GameIcon name="arrowLeft" size={26} /></button>
       </header>
 
       <div className="profile-scroll">

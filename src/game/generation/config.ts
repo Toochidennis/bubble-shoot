@@ -5,7 +5,9 @@ export const FIRST_GENERATED_LEVEL_ID = 16 as const
 export const MAX_SUPPORTED_LEVEL_ID = 10_000 as const
 export const MAX_GENERATION_RETRIES = 3 as const
 export const MIN_GENERATED_SHOTS = 8 as const
-export const MAX_GENERATED_SHOTS = 96 as const
+// Hard ceiling on shots for every level (curated + generated). Nothing is ever
+// granted more than this, whether budgeted by the solver or the par×margin model.
+export const MAX_GENERATED_SHOTS = 35 as const
 export const GENERATED_DENSITY_MIN = 0.92
 export const GENERATED_DENSITY_MAX = 1
 

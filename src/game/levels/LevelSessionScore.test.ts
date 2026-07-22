@@ -31,15 +31,17 @@ describe('level score lifecycle', () => {
 
     expect(session.status).toBe('WON')
     expect(session.snapshot().lastTurnScore?.matchedBubbleCount).toBe(3)
-    expect(session.snapshot().lastTurnScore?.completionBonus).toBe(875)
-    expect(session.snapshot().currentRunScore).toBe(905)
-    expect(session.snapshot().finalScore).toBe(905)
+    // Level 1's derived budget (par × margin, under the 34 ceiling) is 32 shots,
+    // so one shot to win leaves 31 remaining → completion bonus 31 × 25 = 775.
+    expect(session.snapshot().lastTurnScore?.completionBonus).toBe(775)
+    expect(session.snapshot().currentRunScore).toBe(805)
+    expect(session.snapshot().finalScore).toBe(805)
     expect(session.snapshot().earnedStars).toBeGreaterThanOrEqual(1)
-    expect(repository.getRecord(1)).toMatchObject({ completed: true, bestScore: 905 })
+    expect(repository.getRecord(1)).toMatchObject({ completed: true, bestScore: 805 })
 
     session.restart()
     expect(session.snapshot().currentRunScore).toBe(0)
     expect(session.snapshot().finalScore).toBeNull()
-    expect(repository.getRecord(1)?.bestScore).toBe(905)
+    expect(repository.getRecord(1)?.bestScore).toBe(805)
   })
 })

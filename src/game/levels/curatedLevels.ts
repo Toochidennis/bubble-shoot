@@ -4,6 +4,7 @@ import { getNeighborCoordinates } from '../grid/neighbors'
 import type { BubbleColor } from '../shooter/types'
 import { deriveStarThresholds } from './types'
 import type { CuratedBubblePlacement, CuratedLevelDefinition } from './types'
+import { boardClearPar, computeShotBudget } from '../generation/shotBudget'
 
 const colors = (...values: BubbleColor[]): readonly BubbleColor[] => values
 
@@ -51,23 +52,33 @@ function denseCuratedPattern(levelId: number, targetCount: number, palette: read
   return placements
 }
 
-export const CURATED_LEVELS: readonly CuratedLevelDefinition[] = [
-  { id: 1, displayNumber: 1, allowedColors: colors('blue', 'green', 'red'), shotLimit: 36, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Round shield with simple three-color lanes', startingBubbles: denseCuratedPattern(1, 59, colors('blue', 'green', 'red')) },
-  { id: 2, displayNumber: 2, allowedColors: colors('blue', 'green', 'red'), shotLimit: 40, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Full crown with friendly color pockets', startingBubbles: denseCuratedPattern(2, 64, colors('blue', 'green', 'red')) },
-  { id: 3, displayNumber: 3, allowedColors: colors('blue', 'green', 'red'), shotLimit: 44, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Dense diagonal ribbons with easy matches', startingBubbles: denseCuratedPattern(3, 69, colors('green', 'blue', 'red')) },
-  { id: 4, displayNumber: 4, allowedColors: colors('blue', 'green', 'red'), shotLimit: 48, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Rounded mass with color-core illusion', startingBubbles: denseCuratedPattern(4, 74, colors('blue', 'red', 'green')) },
-  { id: 5, displayNumber: 5, allowedColors: colors('blue', 'green', 'red'), shotLimit: 52, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Dense wave bands with three-color clusters', startingBubbles: denseCuratedPattern(5, 79, colors('red', 'blue', 'green')) },
-  { id: 6, displayNumber: 6, allowedColors: colors('blue', 'green', 'red'), shotLimit: 56, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Full upper board with side-color lanes', startingBubbles: denseCuratedPattern(6, 84, colors('blue', 'green', 'red')) },
-  { id: 7, displayNumber: 7, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 60, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Four-color shield with split wings', startingBubbles: denseCuratedPattern(7, 89, colors('yellow', 'blue', 'green', 'red')) },
-  { id: 8, displayNumber: 8, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 64, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Dense diagonal color ribbons', startingBubbles: denseCuratedPattern(8, 94, colors('red', 'yellow', 'green', 'blue')) },
-  { id: 9, displayNumber: 9, allowedColors: colors('blue', 'green', 'red'), shotLimit: 68, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Full three-color board with broad waves', startingBubbles: denseCuratedPattern(9, 99, colors('green', 'blue', 'red')) },
-  { id: 10, displayNumber: 10, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 72, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Broad crown with multiple color lanes', startingBubbles: denseCuratedPattern(10, 104, colors('blue', 'green', 'yellow', 'red')) },
-  { id: 11, displayNumber: 11, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 76, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Dense split-color wings', startingBubbles: denseCuratedPattern(11, 109, colors('red', 'blue', 'green', 'yellow')) },
-  { id: 12, displayNumber: 12, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 80, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Full layered arch with diagonal colors', startingBubbles: denseCuratedPattern(12, 114, colors('blue', 'green', 'red', 'yellow')) },
-  { id: 13, displayNumber: 13, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 84, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Alternate color paths through a deep board', startingBubbles: denseCuratedPattern(13, 119, colors('green', 'yellow', 'blue', 'red')) },
-  { id: 14, displayNumber: 14, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 88, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Full crown with split-color illusion', startingBubbles: denseCuratedPattern(14, 124, colors('red', 'blue', 'yellow', 'green')) },
-  { id: 15, displayNumber: 15, allowedColors: colors('blue', 'green', 'red', 'yellow'), shotLimit: 92, mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Final dense color-core board', startingBubbles: denseCuratedPattern(15, 129, colors('blue', 'yellow', 'green', 'red')) },
+// Boards, colors, and missions are authored here; the shot budget is DERIVED
+// centrally (par × fairness margin) so curated and generated levels ride one
+// difficulty curve instead of a hand-tuned, drift-prone ladder.
+const CURATED_LEVEL_SEED: readonly Omit<CuratedLevelDefinition, 'shotLimit'>[] = [
+  { id: 1, displayNumber: 1, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Round shield with simple three-color lanes', startingBubbles: denseCuratedPattern(1, 59, colors('blue', 'green', 'red')) },
+  { id: 2, displayNumber: 2, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Full crown with friendly color pockets', startingBubbles: denseCuratedPattern(2, 64, colors('blue', 'green', 'red')) },
+  { id: 3, displayNumber: 3, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Dense diagonal ribbons with easy matches', startingBubbles: denseCuratedPattern(3, 69, colors('green', 'blue', 'red')) },
+  { id: 4, displayNumber: 4, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Rounded mass with color-core illusion', startingBubbles: denseCuratedPattern(4, 74, colors('blue', 'red', 'green')) },
+  { id: 5, displayNumber: 5, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'basic-onboarding', focus: 'Dense wave bands with three-color clusters', startingBubbles: denseCuratedPattern(5, 79, colors('red', 'blue', 'green')) },
+  { id: 6, displayNumber: 6, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Full upper board with side-color lanes', startingBubbles: denseCuratedPattern(6, 84, colors('blue', 'green', 'red')) },
+  { id: 7, displayNumber: 7, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Four-color shield with split wings', startingBubbles: denseCuratedPattern(7, 89, colors('yellow', 'blue', 'green', 'red')) },
+  { id: 8, displayNumber: 8, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Dense diagonal color ribbons', startingBubbles: denseCuratedPattern(8, 94, colors('red', 'yellow', 'green', 'blue')) },
+  { id: 9, displayNumber: 9, allowedColors: colors('blue', 'green', 'red'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Full three-color board with broad waves', startingBubbles: denseCuratedPattern(9, 99, colors('green', 'blue', 'red')) },
+  { id: 10, displayNumber: 10, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'early-skill-building', focus: 'Broad crown with multiple color lanes', startingBubbles: denseCuratedPattern(10, 104, colors('blue', 'green', 'yellow', 'red')) },
+  { id: 11, displayNumber: 11, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Dense split-color wings', startingBubbles: denseCuratedPattern(11, 109, colors('red', 'blue', 'green', 'yellow')) },
+  { id: 12, displayNumber: 12, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Full layered arch with diagonal colors', startingBubbles: denseCuratedPattern(12, 114, colors('blue', 'green', 'red', 'yellow')) },
+  { id: 13, displayNumber: 13, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Alternate color paths through a deep board', startingBubbles: denseCuratedPattern(13, 119, colors('green', 'yellow', 'blue', 'red')) },
+  { id: 14, displayNumber: 14, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Full crown with split-color illusion', startingBubbles: denseCuratedPattern(14, 124, colors('red', 'blue', 'yellow', 'green')) },
+  { id: 15, displayNumber: 15, allowedColors: colors('blue', 'green', 'red', 'yellow'), mission: { type: 'CLEAR_ALL_BUBBLES' }, onboardingBand: 'stronger-onboarding', focus: 'Final dense color-core board', startingBubbles: denseCuratedPattern(15, 129, colors('blue', 'yellow', 'green', 'red')) },
 ]
+
+export const CURATED_LEVELS: readonly CuratedLevelDefinition[] = CURATED_LEVEL_SEED.map((level) =>
+  Object.freeze({
+    ...level,
+    shotLimit: computeShotBudget(boardClearPar(level.startingBubbles.length, level.allowedColors.length), level.id),
+  }),
+)
 
 export function getCuratedLevel(levelId: number): CuratedLevelDefinition | undefined {
   return CURATED_LEVELS.find((level) => level.id === levelId)

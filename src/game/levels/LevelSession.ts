@@ -59,7 +59,7 @@ export class LevelSession {
 
   public constructor(
     levelId = 1,
-    private readonly viewport: LogicalViewport = { width: 320, height: 560, pixelRatio: 1 },
+    private viewport: LogicalViewport = { width: 320, height: 560, pixelRatio: 1 },
     progression: ProgressionRepository = createDefaultProgressionRepository(),
     layout?: GameplayLayout,
   ) {
@@ -128,6 +128,11 @@ export class LevelSession {
    * the width guessed before the canvas was measured.
    */
   public applyViewport(viewport: LogicalViewport): GameplayLayout {
+    // Keep the stored viewport in sync too, so a later restart (replaceLevel)
+    // rebuilds the shooter at the real canvas width — otherwise the shooter is
+    // recreated from the stale construction viewport and lands off-centre on
+    // the portrait-locked desktop stage.
+    this.viewport = viewport
     this.layout = createGameplayLayout(viewport)
     this.gameplay.board.relayout(this.layout.grid)
     return this.layout
