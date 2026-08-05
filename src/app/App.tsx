@@ -10,9 +10,16 @@ import { MapScreen } from '../screens/MapScreen'
 import { loadBubbleShooterCatalogs, useBubbleShooterCatalogStore } from '../game/catalog/bubbleShooterCatalogStore'
 import { useBubbleShooterProfile } from '../game/profile/bubbleShooterProfile'
 
+type Screen = 'home' | 'map' | 'gameplay' | 'settings' | 'profile'
+
+interface NavState {
+  readonly screen: Screen
+  readonly activeLevel: number
+}
+
 export function App() {
   const progression = useMemo(() => createDefaultProgressionRepository(), [])
-  const [screen, setScreen] = useState<'home' | 'map' | 'gameplay' | 'settings' | 'profile'>('home')
+  const [screen, setScreen] = useState<Screen>('home')
   const [activeLevel, setActiveLevel] = useState(1)
   const [progressionRevision, setProgressionRevision] = useState(0)
   const [profile, setProfile] = useBubbleShooterProfile()
@@ -20,16 +27,48 @@ export function App() {
 
   useEffect(() => { void loadBubbleShooterCatalogs() }, [])
 
+  // Mirror the current screen into the browser history so the browser/OS back
+  // and forward buttons (and the Android back gesture) move between screens just
+  // like the in-app arrows, instead of leaving the app. The screen lives in
+  // history.state; forward navigation pushes an entry, and "back" simply pops.
+  useEffect(() => {
+    window.history.replaceState({ screen: 'home', activeLevel: 1 } satisfies NavState, '')
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state as Partial<NavState> | null
+      setScreen(state?.screen ?? 'home')
+      if (typeof state?.activeLevel === 'number') setActiveLevel(state.activeLevel)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  const navigate = (nextScreen: Screen, level?: number) => {
+    const nextLevel = level ?? activeLevel
+    if (level !== undefined) setActiveLevel(level)
+    window.history.pushState({ screen: nextScreen, activeLevel: nextLevel } satisfies NavState, '')
+    setScreen(nextScreen)
+  }
+  const goBack = () => window.history.back()
+
   const launchLevel = (levelId: number) => {
     if (!progression.isLevelUnlocked(levelId)) return
-    setActiveLevel(levelId)
-    setScreen('gameplay')
+    navigate('gameplay', levelId)
   }
 
   return (
     <main className="app-shell">
       {screen !== 'gameplay' ? <SpaceBackground /> : null}
-      {screen === 'home' ? <HomeDashboard key={progressionRevision} profile={profile} countries={catalog.countries} progression={progression} onLaunchLevel={launchLevel} onSettings={() => setScreen('settings')} onProfile={() => setScreen('profile')} onMap={() => setScreen('map')} /> : screen === 'map' ? <MapScreen progression={progression} onHome={() => setScreen('home')} onProfile={() => setScreen('profile')} onLaunchLevel={launchLevel} /> : screen === 'gameplay' ? <FoundationScreen key={activeLevel} levelId={activeLevel} progression={progression} onHome={() => setScreen('home')} onNextLevel={launchLevel} /> : screen === 'profile' ? <ProfileScreen profile={profile} catalog={catalog} onBack={() => setScreen('home')} onSave={(nextProfile) => { setProfile(nextProfile); setScreen('home') }} /> : <SettingsScreen progression={progression} onBack={() => setScreen('home')} onResetProgress={() => { progression.clear(); setProgressionRevision((revision) => revision + 1); setScreen('home') }} />}
+      {screen === 'home' ? (
+        <HomeDashboard key={progressionRevision} profile={profile} countries={catalog.countries} progression={progression} onLaunchLevel={launchLevel} onSettings={() => navigate('settings')} onProfile={() => navigate('profile')} onMap={() => navigate('map')} />
+      ) : screen === 'map' ? (
+        <MapScreen progression={progression} onHome={goBack} onProfile={() => navigate('profile')} onLaunchLevel={launchLevel} />
+      ) : screen === 'gameplay' ? (
+        <FoundationScreen key={activeLevel} levelId={activeLevel} progression={progression} onHome={goBack} onNextLevel={launchLevel} />
+      ) : screen === 'profile' ? (
+        <ProfileScreen profile={profile} catalog={catalog} onBack={goBack} onSave={(nextProfile) => { setProfile(nextProfile); goBack() }} />
+      ) : (
+        <SettingsScreen progression={progression} onBack={goBack} onResetProgress={() => { progression.clear(); setProgressionRevision((revision) => revision + 1); goBack() }} />
+      )}
     </main>
   )
 }
