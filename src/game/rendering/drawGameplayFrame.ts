@@ -16,9 +16,18 @@ export const BUBBLE_COLOR_STOPS: Readonly<Record<BubbleColor, { readonly base: s
   yellow: { base: '#c68d20', light: '#edc15b', dark: '#67450d', glow: '#c99428' },
 })
 
+const HIGH_CONTRAST_BUBBLE_COLOR_STOPS: Readonly<Record<BubbleColor, { readonly base: string; readonly light: string; readonly dark: string; readonly glow: string }>> = Object.freeze({
+  blue: { base: '#1976d2', light: '#b3e5fc', dark: '#073a78', glow: '#64b5f6' },
+  green: { base: '#00a152', light: '#b9f6ca', dark: '#00522b', glow: '#69f0ae' },
+  purple: { base: '#8e24aa', light: '#e1bee7', dark: '#4a0e65', glow: '#ce93d8' },
+  red: { base: '#e53935', light: '#ffcdd2', dark: '#811b1b', glow: '#ff8a80' },
+  yellow: { base: '#ffb300', light: '#fff3a0', dark: '#744300', glow: '#ffd54f' },
+})
+
 export interface GameplayRenderOptions {
   readonly showTrajectory?: boolean
   readonly visualTheme?: BubbleVisualTheme
+  readonly highContrastBubbles?: boolean
   /** Presentation-only hold for a terminal shot that could not be snapped. */
   readonly terminalProjectile?: ProjectileState | null
   readonly presentation?: GameplayPresentationFrame
@@ -111,20 +120,20 @@ export function drawGameplayFrame(
     const entrance = options.presentation?.entranceProgress ?? 1
     const entranceAlpha = Math.min(1, Math.max(0, (entrance - cell.coordinate.row * .025) / .32))
     const entranceOffset = (1 - entranceAlpha) * -6
-    drawBubble(context, cell.center.x, cell.center.y + entranceOffset, board.config.bubbleRadius * (effect?.scale ?? (0.96 + entranceAlpha * .04)), cell.value, visualTheme, 'board', entranceAlpha * (effect?.alpha ?? 1), cell.coordinate)
+    drawBubble(context, cell.center.x, cell.center.y + entranceOffset, board.config.bubbleRadius * (effect?.scale ?? (0.96 + entranceAlpha * .04)), cell.value, visualTheme, 'board', entranceAlpha * (effect?.alpha ?? 1), cell.coordinate, options.highContrastBubbles)
   }
   for (const effect of options.presentation?.bubbleEffects ?? []) {
-    drawBubble(context, effect.position.x, effect.position.y, board.config.bubbleRadius * effect.scale, effect.bubble, visualTheme, 'projectile', effect.alpha, { row: -4, column: effect.key.length })
+    drawBubble(context, effect.position.x, effect.position.y, board.config.bubbleRadius * effect.scale, effect.bubble, visualTheme, 'projectile', effect.alpha, { row: -4, column: effect.key.length }, options.highContrastBubbles)
     drawBubblePopAccent(context, effect, board.config.bubbleRadius)
   }
   for (const falling of fallingBubbles) {
-    drawBubble(context, falling.position.x, falling.position.y, board.config.bubbleRadius * .82, falling.bubble, visualTheme, 'falling', .76, falling.coordinate)
+    drawBubble(context, falling.position.x, falling.position.y, board.config.bubbleRadius * .82, falling.bubble, visualTheme, 'falling', .76, falling.coordinate, options.highContrastBubbles)
   }
   for (const falling of options.presentation?.fallingBubbles ?? []) {
     context.save()
     context.translate(falling.position.x, falling.position.y)
     context.rotate(falling.rotation)
-    drawBubble(context, 0, 0, board.config.bubbleRadius * falling.scale, falling.bubble, visualTheme, 'falling', falling.alpha, falling.coordinate)
+    drawBubble(context, 0, 0, board.config.bubbleRadius * falling.scale, falling.bubble, visualTheme, 'falling', falling.alpha, falling.coordinate, options.highContrastBubbles)
     context.restore()
   }
 
@@ -133,11 +142,11 @@ export function drawGameplayFrame(
 
   if (options.showTrajectory !== false && projectile === null) drawTrajectory(context, trajectory, snapshot.currentBubble.color, options.presentation?.trajectoryPhase ?? 0)
   if (projectile !== null) {
-    drawProjectileWithMotion(context, projectile, visualTheme, options.presentation?.wallBounce ?? null)
+    drawProjectileWithMotion(context, projectile, visualTheme, options.presentation?.wallBounce ?? null, options.highContrastBubbles)
   } else if (options.terminalProjectile !== null && options.terminalProjectile !== undefined) {
-    drawBubble(context, options.terminalProjectile.position.x, options.terminalProjectile.position.y, options.terminalProjectile.radius, options.terminalProjectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: options.terminalProjectile.id.length })
+    drawBubble(context, options.terminalProjectile.position.x, options.terminalProjectile.position.y, options.terminalProjectile.radius, options.terminalProjectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: options.terminalProjectile.id.length }, options.highContrastBubbles)
   }
-  drawShooter(context, snapshot.origin.x, snapshot.origin.y, board.config.bubbleRadius, snapshot.currentBubble, snapshot.aimDirection, visualTheme, options.presentation)
+  drawShooter(context, snapshot.origin.x, snapshot.origin.y, board.config.bubbleRadius, snapshot.currentBubble, snapshot.aimDirection, visualTheme, options.presentation, options.highContrastBubbles)
 }
 
 function drawProjectileWithMotion(
@@ -145,9 +154,10 @@ function drawProjectileWithMotion(
   projectile: ProjectileState,
   visualTheme: BubbleVisualTheme,
   wallBounce: NonNullable<GameplayPresentationFrame['wallBounce']> | null,
+  highContrastBubbles = false,
 ): void {
   if (wallBounce === null) {
-    drawBubble(context, projectile.position.x, projectile.position.y, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length })
+    drawBubble(context, projectile.position.x, projectile.position.y, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length }, highContrastBubbles)
     return
   }
   const progress = Math.min(1, Math.max(0, wallBounce.progress))
@@ -161,7 +171,7 @@ function drawProjectileWithMotion(
   context.translate(projectile.position.x, projectile.position.y)
   context.rotate(angle)
   context.scale(alongScale, perpendicularScale)
-  drawBubble(context, 0, 0, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length })
+  drawBubble(context, 0, 0, projectile.radius, projectile.bubble, visualTheme, 'projectile', 1, { row: -2, column: projectile.id.length }, highContrastBubbles)
   context.restore()
 }
 
@@ -380,8 +390,9 @@ export function drawBubble(
   presentationState: BubblePresentationState = 'board',
   alpha = 1,
   variationSeed: { readonly row: number; readonly column: number } = { row: 0, column: 0 },
+  highContrastBubbles = false,
 ): void {
-  const colors = BUBBLE_COLOR_STOPS[bubble.color]
+  const colors = (highContrastBubbles ? HIGH_CONTRAST_BUBBLE_COLOR_STOPS : BUBBLE_COLOR_STOPS)[bubble.color]
   const variant = getBubbleVisualVariant(variationSeed.row, variationSeed.column, bubble.color)
   // Level families remain metadata; the visible gameplay silhouette is always
   // the same smooth sphere.
@@ -394,15 +405,15 @@ export function drawBubble(
   context.save()
   context.globalAlpha = alpha
   context.shadowColor = colors.glow
-  context.shadowBlur = radius * (presentationState === 'board' ? .2 : .4)
+  context.shadowBlur = highContrastBubbles ? 0 : radius * (presentationState === 'board' ? .06 : .25)
   context.beginPath()
   context.arc(x, y, radius, 0, Math.PI * 2)
   context.fillStyle = gradient
   context.fill()
   context.shadowBlur = 0
-  context.globalAlpha = alpha * .72
-  context.strokeStyle = colors.dark
-  context.lineWidth = Math.max(1, radius * (presentationState === 'shooter' ? .075 : .055))
+  context.globalAlpha = alpha * .82
+  context.strokeStyle = highContrastBubbles ? 'rgba(255,255,255,.92)' : colors.dark
+  context.lineWidth = Math.max(1, radius * (highContrastBubbles ? .085 : presentationState === 'shooter' ? .075 : .055))
   context.stroke()
 
   // A restrained lower contact rim keeps close-packed cells visually connected.
@@ -432,8 +443,8 @@ export function drawBubble(
   context.restore()
 }
 
-function drawShooter(context: CanvasRenderingContext2D, x: number, y: number, radius: number, bubble: BubbleDescriptor, aimDirection: Point2D, visualTheme: BubbleVisualTheme, presentation?: GameplayPresentationFrame): void {
-  const colors = BUBBLE_COLOR_STOPS[bubble.color]
+function drawShooter(context: CanvasRenderingContext2D, x: number, y: number, radius: number, bubble: BubbleDescriptor, aimDirection: Point2D, visualTheme: BubbleVisualTheme, presentation?: GameplayPresentationFrame, highContrastBubbles = false): void {
+  const colors = (highContrastBubbles ? HIGH_CONTRAST_BUBBLE_COLOR_STOPS : BUBBLE_COLOR_STOPS)[bubble.color]
   context.save()
   const aura = context.createRadialGradient(x, y + radius * .35, 0, x, y + radius * .35, radius * 2.2)
   aura.addColorStop(0, `rgba(187, 63, 255, ${.35 + (presentation?.shooterGlow ?? .25)})`)
@@ -449,7 +460,7 @@ function drawShooter(context: CanvasRenderingContext2D, x: number, y: number, ra
   context.strokeStyle = '#dca7ff'
   context.lineWidth = radius * .12
   context.stroke()
-  drawBubble(context, x, y, radius * (presentation?.shooterScale ?? 1), bubble, visualTheme, 'shooter', 1, { row: -3, column: 0 })
+  drawBubble(context, x, y, radius * (presentation?.shooterScale ?? 1), bubble, visualTheme, 'shooter', 1, { row: -3, column: 0 }, highContrastBubbles)
   drawAimPointer(context, x, y, radius, aimDirection, colors.light, colors.glow)
   context.restore()
 }

@@ -106,6 +106,14 @@ export class ShooterState {
     this.inputLocked = false
   }
 
+  public swapCurrentAndNext(): boolean {
+    if (!this.canAcceptAim()) return false
+    const current = this.currentBubble
+    this.currentBubble = this.nextBubble
+    this.nextBubble = current
+    return true
+  }
+
   public unlockInput(): void {
     this.inputLocked = false
   }

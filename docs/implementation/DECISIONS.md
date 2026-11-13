@@ -591,6 +591,18 @@ This log records meaningful architectural, product, scope, and source-control de
 - Curated Levels 1-15 now use dense connected formations with 42-78 starting bubbles. They remain deterministic, normal-bubble-only, ceiling-supported, and clear-all authored onboarding content; visible shape comes from BubbleColor bands and lanes instead of large structural holes.
 - Generated content version 4 raises bands to 59-72 bubbles for Levels 16-100, 64-76 for Levels 101-1000, and 68-78 for Levels 1001-10000. Counts are still clamped to valid capacity, analyzed after construction, and mission-validated before acceptance.
 
+## DEC-0078 - Owner-approved Phase 17 responsiveness and rewarded placements
+
+- **Date:** 2026-11-13
+- **Status:** Game implemented; LinkSchool bridge code prepared locally and left uncommitted at the owner's request; native delivery verification remains open
+- The owner reviewed the native-banner gameplay screenshot and approved Phase 17 responsive layout, color contrast, low-end motion, and Bubble Shooter reward-placement work.
+- The game exposes a `BubbleShooterHost.setLayoutInsets({ bottom })` contract and a `nativeAdInset` first-paint query parameter. Existing LinkSchool banner placement and sizing were left unchanged.
+- A normal out-of-shots loss may offer one optional five-shot continuation per level attempt. A successful rewarded callback restores gameplay; cancel, failure, unavailable inventory, or missing host leaves Retry and Home available and grants nothing.
+- Each level starts with one Color Swap charge. After using it, the player may optionally watch one rewarded ad per attempt to refill one charge. The tool only swaps current and next bubbles while the engine accepts input; it never alters matching, physics, or score rules.
+- Reward offers are shown only when the host advertises the matching placement. The web client awards only on the host's `earned` result and acknowledges that result. LinkSchool's existing rewarded-ad manager is bridged for Bubble Shooter; real ad delivery still needs device verification.
+- The low-end canvas profile caps DPR at 1.25 on devices reporting four or fewer hardware threads or 4 GB memory; other devices cap at 1.75. The default frame-delta cap is 100 ms so swept collision can preserve projectile travel on slower frames while bounding long stalls.
+- High Contrast Bubbles is an optional saved preference using brighter color stops and crisp bubble outlines. The standard circular bubble renderer and matching rules remain intact.
+
 ## DEC-0056 - Scalable reference-style board correction
 
 - The fixed 78-cell board is replaced by an 11/10 alternating-column, 19-row grid with exactly 200 logical cells. A responsive radius derived from viewport width and available height keeps the complete board below the HUD-safe ceiling and above the shooter region, including narrow mobile viewports.

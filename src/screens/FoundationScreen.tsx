@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 
-import { CanvasHost } from '../components/CanvasHost'
+import { CanvasHost, type CanvasHostHandle } from '../components/CanvasHost'
 import { GameIcon } from '../components/GameIcon'
 import type { MissionObjectiveProgress } from '../game/mission/types'
 import type { ProgressionRepository } from '../game/progression/ProgressionRepository'
@@ -8,6 +8,9 @@ import type { LevelSessionSnapshot } from '../game/levels/LevelSession'
 import { getBubbleVisualThemeForLevel } from '../game/rendering/bubbleVisualTheme'
 import { gameAudio } from '../game/audio/gameAudio'
 import { missionDisplay } from './gameplayPresentation'
+import { BRIDGE_CHANGED_EVENT, rewardBridge } from '../game/ads/rewardBridge'
+import type { RewardPlacement } from '../game/ads/rewardBridge'
+import { getGamePreferences } from '../app/preferences'
 
 interface FoundationScreenProps {
   readonly levelId?: number
@@ -61,11 +64,16 @@ function MissionObjectiveCard({ objective, pulsing }: { readonly objective: Miss
   )
 }
 
-function GameplayHud({ snapshot, levelId, paused, onPause, pulsingObjectiveIds }: {
+function GameplayHud({ snapshot, levelId, paused, onPause, onSwap, onRefill, swapRefillAvailable, rewardBusy, rewardMessage, pulsingObjectiveIds }: {
   readonly snapshot: LevelSessionSnapshot | null
   readonly levelId: number
   readonly paused: boolean
   readonly onPause: () => void
+  readonly onSwap: () => void
+  readonly onRefill: () => void
+  readonly swapRefillAvailable: boolean
+  readonly rewardBusy: boolean
+  readonly rewardMessage: string
   readonly pulsingObjectiveIds: readonly string[]
 }) {
   const objectives = snapshot?.mission.objectives ?? []
@@ -80,7 +88,10 @@ function GameplayHud({ snapshot, levelId, paused, onPause, pulsingObjectiveIds }
         </div>
       </header>
       <div className="gameplay-bubble-hud">
+        <button type="button" className="color-swap-button" disabled={(snapshot?.colorSwapCharges ?? 0) < 1 || snapshot?.status !== 'ACTIVE' || snapshot?.gameplay.state !== 'AIMING' || paused || rewardBusy} onClick={onSwap} aria-label={`Swap current and next bubbles, ${snapshot?.colorSwapCharges ?? 0} swaps remaining`} title="Swap bubbles"><GameIcon name="swap" size={21} /><span className="color-swap-charge" aria-hidden="true">{snapshot?.colorSwapCharges ?? 0}</span></button>
+        {swapRefillAvailable && snapshot?.canRefillColorSwap ? <button type="button" className="color-swap-reward-button" disabled={rewardBusy || paused} onClick={onRefill} aria-label="Watch an ad for one extra bubble swap">{rewardBusy ? 'WAIT' : 'AD +1'}</button> : null}
         <div className="next-bubble-preview" data-bubble-theme={visualTheme}><small>NEXT</small><span className={`hud-bubble hud-bubble--${snapshot?.gameplay.nextBubble.color ?? 'yellow'}`} /></div>
+        {rewardMessage && status === 'ACTIVE' ? <span className="reward-inline-message" role="status">{rewardMessage}</span> : null}
       </div>
     </>
   )
@@ -93,6 +104,10 @@ export function FoundationScreen({ levelId = 1, onHome, onNextLevel, progression
   const [pulsingObjectiveIds, setPulsingObjectiveIds] = useState<readonly string[]>([])
   const [revealedStars, setRevealedStars] = useState(0)
   const [terminalReady, setTerminalReady] = useState(true)
+  const [rewardBusy, setRewardBusy] = useState(false)
+  const [rewardMessage, setRewardMessage] = useState('')
+  const [rewardPlacements, setRewardPlacements] = useState({ rescue: false, swapRefill: false })
+  const canvasHostRef = useRef<CanvasHostHandle>(null)
   const previousSnapshotRef = useRef<LevelSessionSnapshot | null>(null)
   const pulseTimeoutRef = useRef<number | null>(null)
   const terminalTimeoutRef = useRef<number | null>(null)
@@ -101,6 +116,17 @@ export function FoundationScreen({ levelId = 1, onHome, onNextLevel, progression
   const canNext = sessionSnapshot?.status === 'WON' && sessionSnapshot.highestUnlockedLevel >= nextLevelId && nextLevelId <= 10_000
   const status = sessionSnapshot?.status ?? 'ACTIVE'
   const visualTheme = getBubbleVisualThemeForLevel(sessionSnapshot?.levelId ?? levelId)
+  const highContrast = getGamePreferences().highContrastBubbles
+
+  useEffect(() => {
+    const updatePlacements = () => setRewardPlacements({
+      rescue: rewardBridge.canRequest('level_rescue'),
+      swapRefill: rewardBridge.canRequest('color_swap_refill'),
+    })
+    updatePlacements()
+    window.addEventListener(BRIDGE_CHANGED_EVENT, updatePlacements)
+    return () => window.removeEventListener(BRIDGE_CHANGED_EVENT, updatePlacements)
+  }, [])
 
   useEffect(() => {
     gameAudio.playMusic('gameplay')
@@ -155,14 +181,36 @@ export function FoundationScreen({ levelId = 1, onHome, onNextLevel, progression
   const restart = () => { setPauseRequested(false); setRevealedStars(0); previousSnapshotRef.current = null; setRestartRequest((value) => value + 1) }
   const pauseToggle = () => setPauseRequested((value) => !value)
 
+  const requestReward = async (placement: RewardPlacement) => {
+    if (rewardBusy || !rewardBridge.canRequest(placement)) return
+    setRewardBusy(true)
+    setRewardMessage('')
+    const pauseForAd = placement === 'color_swap_refill' && status === 'ACTIVE'
+    if (pauseForAd) {
+      setPauseRequested(true)
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())))
+    }
+    const earned = await rewardBridge.request(placement)
+    let applied = false
+    if (earned) {
+      applied = placement === 'level_rescue'
+        ? canvasHostRef.current?.grantRewardedRescue() === true
+        : canvasHostRef.current?.grantColorSwapRefill() === true
+    }
+    if (pauseForAd) setPauseRequested(false)
+    setRewardBusy(false)
+    if (earned && !applied) setRewardMessage('This reward is no longer available for the current level.')
+    else if (!earned) setRewardMessage('No reward was granted. You can try again or continue playing.')
+  }
+
   return (
-    <section className={`gameplay-screen gameplay-theme--${visualTheme}`} aria-label="Bubble Shooter gameplay">
+    <section className={`gameplay-screen gameplay-theme--${visualTheme}${highContrast ? ' is-high-contrast' : ''}`} aria-label="Bubble Shooter gameplay">
       <div className="gameplay-world">
-        <CanvasHost initialLevelId={levelId} {...(progression ? { progression } : {})} onSessionSnapshot={snapshotHandler} pauseRequested={pauseRequested} restartRequest={restartRequest} onPauseStateChange={setPauseRequested} />
-        <GameplayHud snapshot={sessionSnapshot} levelId={levelId} paused={pauseRequested} onPause={pauseToggle} pulsingObjectiveIds={pulsingObjectiveIds} />
+        <CanvasHost ref={canvasHostRef} initialLevelId={levelId} {...(progression ? { progression } : {})} onSessionSnapshot={snapshotHandler} pauseRequested={pauseRequested} restartRequest={restartRequest} onPauseStateChange={setPauseRequested} />
+        <GameplayHud snapshot={sessionSnapshot} levelId={levelId} paused={pauseRequested} onPause={pauseToggle} onSwap={() => { gameAudio.unlock(); gameAudio.play('uiClick'); canvasHostRef.current?.swapBubbles() }} onRefill={() => { void requestReward('color_swap_refill') }} swapRefillAvailable={rewardPlacements.swapRefill} rewardBusy={rewardBusy} rewardMessage={rewardMessage} pulsingObjectiveIds={pulsingObjectiveIds} />
         {pauseRequested ? <div className="gameplay-overlay" role="dialog" aria-label="Paused"><div className="overlay-panel"><span className="overlay-kicker">PAUSED</span><h1>Take a breath</h1><button type="button" className="overlay-primary" onClick={() => setPauseRequested(false)}>Resume</button><button type="button" className="overlay-secondary" onClick={restart}>Restart Level</button><button type="button" className="overlay-secondary" onClick={onHome}>Home</button></div></div> : null}
         {status === 'WON' && terminalReady ? <div className="gameplay-overlay" role="dialog" aria-label="Level complete"><div className="overlay-panel"><span className="overlay-kicker">LEVEL COMPLETE</span><span className="overlay-level">Level {sessionSnapshot?.displayNumber ?? levelId}</span><h1>Brilliant pop!</h1><div className="overlay-result-score">{sessionSnapshot?.finalScore?.toLocaleString() ?? 0}<small>POINTS</small></div><div className="overlay-stars" aria-label={`${sessionSnapshot?.earnedStars ?? 0} stars earned`}>{[1, 2, 3].map((star) => <span key={star} className={star <= revealedStars ? 'is-revealed' : ''}>★</span>)}</div>{canNext && onNextLevel ? <button type="button" className="overlay-primary" onClick={() => onNextLevel(nextLevelId)}>Next Level</button> : null}<button type="button" className="overlay-secondary" onClick={onHome}>Home</button></div></div> : null}
-        {status === 'LOST' && terminalReady ? <div className="gameplay-overlay" role="dialog" aria-label="Out of shots"><div className="overlay-panel"><span className="overlay-kicker">OUT OF SHOTS</span><h1>Almost there</h1><p>Try a new angle and clear the board.</p><button type="button" className="overlay-primary" onClick={restart}>Retry</button><button type="button" className="overlay-secondary" onClick={onHome}>Home</button></div></div> : null}
+        {status === 'LOST' && terminalReady ? <div className="gameplay-overlay" role="dialog" aria-label="Out of shots"><div className="overlay-panel"><span className="overlay-kicker">OUT OF SHOTS</span><h1>Almost there</h1><p>Try a new angle and clear the board.</p>{rewardMessage ? <p role="status">{rewardMessage}</p> : null}{sessionSnapshot?.canUseRewardedRescue && rewardPlacements.rescue ? <button type="button" className="overlay-reward" disabled={rewardBusy} onClick={() => { void requestReward('level_rescue') }}>{rewardBusy ? 'Waiting for ad…' : 'Watch an ad for 5 more shots'}</button> : null}<button type="button" className="overlay-primary" onClick={restart}>Retry</button><button type="button" className="overlay-secondary" onClick={onHome}>Home</button></div></div> : null}
       </div>
     </section>
   )

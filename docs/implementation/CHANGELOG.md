@@ -2,6 +2,28 @@
 
 All notable implementation and project-control changes are recorded here. Blueprint overrides must also be documented in `DECISIONS.md`.
 
+## 2026-11-13 - Phase 17 responsive and rewarded-placement work (in progress)
+
+### Added
+
+- `BubbleShooterHost.setLayoutInsets({ bottom })` and the optional `nativeAdInset` query parameter, allowing the Flutter WebView to reserve its actual banner height before gameplay layout and Canvas measurement.
+- A versioned Bubble Shooter reward bridge for the `level_rescue` and `color_swap_refill` placements. Corresponding LinkSchool host code is prepared locally but remains uncommitted at the owner's request. The game only applies a reward after an `earned` response and remains inert when the host has not advertised a placement.
+- One free Color Swap charge per level attempt, with one optional rewarded refill, plus a one-time optional five-shot rescue after a normal out-of-shots loss.
+- A saved High Contrast Bubbles setting with brighter Canvas colors, a crisp edge, and matching HUD preview colors.
+- An icon-only Color Swap control with a visible charge badge.
+
+### Changed
+
+- The app reserves the native banner inset in its content height, including the desktop spacing override; the centered portrait stage now fits above the banner in portrait, landscape, and desktop layouts.
+- Canvas DPR is capped at 1.25 for devices reporting four or fewer CPU threads or at most 4 GB memory, and at 1.75 otherwise. Repeated board-bubble shadow blur was reduced.
+- The default RAF delta cap increased from 50 ms to 100 ms; the projectile solver already uses swept collision and supports up to 250 ms steps.
+
+### Verified
+
+- TypeScript typecheck, ESLint, and production build passed. A local Chrome viewport pass at 320x568, 360x750, 393x873, 430x932, 844x390, and 1280x800 with a simulated 46px banner inset showed no horizontal overflow and kept the playfield/next bubble above the ad region.
+- A mocked WebView host advertised both placements; the swap-refill request received `earned`, was acknowledged, and restored one charge. The saved contrast preference was applied after reload.
+- LinkSchool's existing ad placements were preserved. Source changes do not verify a real AdMob impression, earned callback, or physical-device frame rate.
+
 ## 2026-07-15 - Phase 16 presentation and living-space polish
 
 ### Added

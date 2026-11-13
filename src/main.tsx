@@ -3,7 +3,12 @@ import { createRoot } from 'react-dom/client'
 
 import { App } from './app/App'
 import { AppErrorBoundary } from './app/AppErrorBoundary'
+import { installGameHostLayoutBridge } from './app/hostLayout'
+import { rewardBridge } from './game/ads/rewardBridge'
 import './styles/global.css'
+
+installGameHostLayoutBridge()
+rewardBridge.install()
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

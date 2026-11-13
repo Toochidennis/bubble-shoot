@@ -87,6 +87,7 @@ a:focus-visible {
 
 .app-shell {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   position: relative;
   height: 100dvh;
   min-height: 0;
@@ -94,7 +95,7 @@ a:focus-visible {
   padding:
     env(safe-area-inset-top)
     env(safe-area-inset-right)
-    env(safe-area-inset-bottom)
+    calc(env(safe-area-inset-bottom) + var(--game-host-bottom-inset, 0px))
     env(safe-area-inset-left);
   /* Mirrors the gameplay/level canvas background (drawGameplayFrame). */
   background: linear-gradient(160deg, #050739 0%, #090b4d 52%, #10052f 100%);
@@ -555,16 +556,16 @@ a:focus-visible {
 }
 
 /* Phase 15 premium gameplay presentation. The Canvas remains the gameplay authority; these styles are the player-facing shell. */
-.gameplay-screen { position: relative; display: grid; place-items: center; width: 100%; height: 100%; min-height: 100dvh; margin: 0 auto; overflow: hidden; background: #050739; }
-.gameplay-world { position: relative; width: min(100%, 42rem); height: 100%; min-height: 100dvh; margin: 0 auto; overflow: hidden; background: #050739; }
+.gameplay-screen { position: relative; display: grid; place-items: center; width: 100%; height: 100%; min-height: 0; margin: 0 auto; overflow: hidden; background: #050739; }
+.gameplay-world { position: relative; width: min(100%, 42rem); height: 100%; min-height: 0; margin: 0 auto; overflow: hidden; background: #050739; }
 /* On wide/desktop viewports, lock gameplay to a centred portrait stage so the
    canvas and its HUD / next-bubble overlays keep phone proportions and stay aligned. */
 @media (min-aspect-ratio: 3 / 4) {
-  .gameplay-world { width: auto; height: 100%; min-height: 0; max-width: 42rem; aspect-ratio: 9 / 16; }
+  .gameplay-world { width: auto; height: 100%; min-height: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--game-host-bottom-inset, 0px)); max-width: 42rem; aspect-ratio: 9 / 16; }
 }
 .gameplay-world .canvas-frame { position: absolute; inset: 0; display: block; border: 0; border-radius: 0; background: transparent; }
-.gameplay-world .game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 100%; }
-.gameplay-world .gameplay-effects-canvas { position: absolute; z-index: 5; inset: 0; width: 100%; height: 100%; min-height: 100%; pointer-events: none; mix-blend-mode: screen; }
+.gameplay-world .game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; }
+.gameplay-world .gameplay-effects-canvas { position: absolute; z-index: 5; inset: 0; width: 100%; height: 100%; min-height: 0; pointer-events: none; mix-blend-mode: screen; }
 .gameplay-world .canvas-frame figcaption, .gameplay-world .development-level-controls { display: none; }
 .gameplay-hud { position: absolute; z-index: 8; top: 0; left: .65rem; right: .65rem; display: grid; grid-template-columns: 2.15rem minmax(0, 1fr) auto; grid-template-rows: auto auto; grid-template-areas: "pause spacer shots" "mission mission mission"; align-items: center; gap: .2rem .5rem; padding: calc(env(safe-area-inset-top) + .34rem) .48rem .38rem; border: 1px solid rgba(144, 124, 255, .42); border-top: 2px solid #8872ed; border-radius: .78rem; background: linear-gradient(180deg, rgba(26, 24, 105, .88), rgba(8, 8, 52, .7)); box-shadow: 0 6px 14px rgba(0,0,0,.23), inset 0 1px rgba(255,255,255,.13); backdrop-filter: blur(10px); }
 .gameplay-hud .hud-icon-button { grid-area: pause; }
@@ -607,6 +608,14 @@ a:focus-visible {
 .gameplay-score-rail { position: absolute; z-index: 7; bottom: calc(env(safe-area-inset-bottom) + 1.3rem); left: 1rem; display: flex; gap: .05rem; padding: .55rem .8rem; border: 1px solid rgba(123, 107, 235, .65); border-radius: 1rem; color: #4f4f80; background: rgba(17, 16, 77, .85); box-shadow: 0 8px 20px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.12); font-size: 1.65rem; letter-spacing: -.16em; }
 .gameplay-score-rail .is-earned { color: #ffd83d; text-shadow: 0 0 12px #ff9b20; }
 .gameplay-bubble-hud { position: absolute; z-index: 7; bottom: calc(env(safe-area-inset-bottom) + 1.25rem); left: calc(50% + 2.15rem); display: flex; align-items: end; gap: .6rem; }
+.color-swap-button { position: relative; display: grid; width: 2.8rem; height: 2.8rem; flex: none; place-items: center; border: 1px solid rgba(208, 194, 255, .82); border-radius: 50%; color: #fff; background: radial-gradient(circle at 32% 24%, rgba(121, 104, 232, .98), rgba(39, 34, 129, .98) 72%); box-shadow: inset 0 1px rgba(255,255,255,.28), 0 4px 12px rgba(0,0,0,.3); cursor: pointer; touch-action: manipulation; }
+.color-swap-button .game-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.48)); }
+.color-swap-charge { position: absolute; right: -.16rem; bottom: -.12rem; display: grid; min-width: 1.12rem; height: 1.12rem; place-items: center; padding: 0 .14rem; border: 1px solid #fff1a2; border-radius: 999px; color: #201442; background: linear-gradient(145deg, #fff19a, #ffd139); box-shadow: 0 2px 7px rgba(0,0,0,.4); font-size: .65rem; font-weight: 950; line-height: 1; }
+.color-swap-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.color-swap-button:disabled { cursor: default; opacity: .52; }
+.color-swap-reward-button { min-height: 2.2rem; padding: .35rem .45rem; border: 1px solid #b7fb85; border-radius: .65rem; color: #17330d; background: linear-gradient(145deg, #caff90, #60d43a); box-shadow: 0 3px 10px rgba(64,225,61,.22); font-size: .53rem; font-weight: 900; cursor: pointer; }
+.color-swap-reward-button:disabled { cursor: wait; opacity: .65; }
+.reward-inline-message { position: absolute; right: 0; bottom: 3.4rem; width: min(13rem, 60vw); color: #fff; font-size: .62rem; text-align: right; text-shadow: 0 1px 4px #07072b; }
 .next-bubble-preview { display: grid; width: 2.8rem; height: 3.2rem; place-items: center; align-content: center; gap: .12rem; color: #f2eaff; }
 .next-bubble-preview::after { content: ''; width: 2.6rem; height: .4rem; margin-top: -.45rem; border-radius: 50%; background: rgba(111, 75, 215, .48); filter: blur(3px); }
 .next-bubble-preview small, .current-bubble-caption small { font-size: .52rem; font-weight: 800; letter-spacing: .16em; color: #d8d4ff; }
@@ -637,6 +646,14 @@ a:focus-visible {
 .overlay-primary, .overlay-secondary { min-height: 2.7rem; border-radius: .75rem; font-size: .78rem; font-weight: 800; cursor: pointer; }
 .overlay-primary { border: 1px solid #e1ffa4; color: #17330d; background: linear-gradient(145deg, #9ef232, #39ba2a); box-shadow: 0 7px 17px rgba(64, 225, 61, .25), inset 0 1px rgba(255,255,255,.5); }
 .overlay-secondary { border: 1px solid #8170dc; color: #e6e1ff; background: rgba(22, 19, 94, .72); }
+.overlay-reward { min-height: 2.7rem; padding: .3rem .65rem; border: 1px solid #b7fb85; border-radius: .75rem; color: #17330d; background: linear-gradient(145deg, #caff90, #60d43a); box-shadow: 0 4px 13px rgba(64,225,61,.25); font-size: .72rem; font-weight: 900; cursor: pointer; }
+.overlay-reward:disabled { cursor: wait; opacity: .7; }
+.gameplay-screen.is-high-contrast .hud-bubble { border-color: #fff; box-shadow: 0 0 0 1px rgba(9,12,50,.88), 0 0 0 2px rgba(255,255,255,.7); }
+.gameplay-screen.is-high-contrast .hud-bubble--blue { background: radial-gradient(circle at 30% 25%, #b3e5fc, #1976d2 54%, #073a78); }
+.gameplay-screen.is-high-contrast .hud-bubble--green { background: radial-gradient(circle at 30% 25%, #b9f6ca, #00a152 54%, #00522b); }
+.gameplay-screen.is-high-contrast .hud-bubble--purple { background: radial-gradient(circle at 30% 25%, #e1bee7, #8e24aa 54%, #4a0e65); }
+.gameplay-screen.is-high-contrast .hud-bubble--red { background: radial-gradient(circle at 30% 25%, #ffcdd2, #e53935 54%, #811b1b); }
+.gameplay-screen.is-high-contrast .hud-bubble--yellow { background: radial-gradient(circle at 30% 25%, #fff3a0, #ffb300 54%, #744300); }
 
 @media (min-width: 40rem) {
   .gameplay-world { border-inline: 1px solid rgba(95, 80, 199, .28); }
@@ -660,7 +677,8 @@ a:focus-visible {
 
 @media (min-width: 40rem) {
   .app-shell {
-    padding-block: 1.5rem;
+    padding-top: calc(1.5rem + env(safe-area-inset-top));
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom) + var(--game-host-bottom-inset, 0px));
   }
 
   .foundation-screen {

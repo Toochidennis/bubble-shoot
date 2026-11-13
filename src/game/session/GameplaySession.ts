@@ -101,6 +101,10 @@ export class GameplaySession {
     return this.shooter.updateAimFromPointer(pointer)
   }
 
+  public swapCurrentAndNext(): boolean {
+    return this.lifecycleState === 'AIMING' && this.shooter.swapCurrentAndNext()
+  }
+
   public requestFire(origin: Point2D): FireAttempt {
     if (this.lifecycleState !== 'AIMING') {
       return { accepted: false, reason: 'not-aiming' }

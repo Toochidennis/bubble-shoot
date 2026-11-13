@@ -1,10 +1,10 @@
 # Project Status
 
-**Status date:** 2026-07-15
+**Status date:** 2026-11-13
 
 ## Current phase
 
-Phase 16 - Animation, game-feel, and living-space background polish: `[x]` Completed and verified; awaiting owner review before Phase 17.
+Phase 17 - QA + first hosted build: `[~]` In progress; owner approved the responsive, contrast, performance, and Bubble Shooter rewarded-placement scope on 2026-11-13.
 
 ## Last completed phase
 
@@ -12,29 +12,33 @@ Phase 16 - Animation, game-feel, and living-space background polish.
 
 ## Next pending phase
 
-Phase 17 - QA + first hosted build. It must not begin until Phase 16 is reviewed and approved.
+Phase 18 - Senior-developer review gate. Phase 17 must first meet its hosted QA and deployment-candidate criteria.
 
 ## Approved work
 
-- Phase 16 presentation polish is implemented around the approved Phase 15 gameplay authorities. Owner review is required before Phase 17.
+- Phase 16 is owner-reviewed; Phase 17 is approved and active.
+- Bubble Shooter may offer one optional five-shot rescue after a normal out-of-shots loss and one optional rewarded refill of its one free per-level Color Swap. Both offers are user-initiated, limited to one per run, and grant only after an `earned` callback.
+- Bubble Shooter exposes a WebView host inset API and optional first-paint `nativeAdInset` query parameter. LinkSchool bridge edits for Bubble Shooter are prepared locally but uncommitted at the owner's request; current ad placements are unchanged.
 
 ## In-progress work
 
-- None.
+- Bubble Shooter responsiveness/contrast/performance work and optional reward placements are implemented; native ad/device verification remains pending.
 
 ## Blocked work
 
-None currently known within Phase 16 scope.
+No Bubble Shooter workspace work is blocked. Real Android/iOS device profiling, native banner appearance, rewarded-ad delivery, and deployment preparation are still unverified.
 
 Phase 19 through Phase 22 cannot receive implementation scope until the project owner or a versioned blueprint revision defines and approves them. They are intentionally deferred rather than treated as active blockers.
 
 ## Deferred work
 
-- Phase 17 and Phase 18 implementation.
+- Remaining Phase 17 hosted/device QA, native rewarded-ad verification, and deployment-candidate preparation.
+- Phase 18 senior-developer review.
 - Final visual systems and all post-Phase-15 features.
 - Animation, particles, transitions, and later gameplay polish.
 - Phase 19 through Phase 22, whose scope is not defined in Master Blueprint v1.0.
-- Future navigation routes/screens, backend systems, monetization, boosters, ads, rankings, reward claims/economy, meta-missions screens, shops, events, cloud sync, advanced blockers, and special bubbles until their approved phases.
+- LinkSchool recognizes `https://bubble.linkskool.com`, routes Bubble Shooter responses to `BubbleShooterHost.receive`, and advertises only `level_rescue`/`color_swap_refill` for this game. Existing LinkSchool ad placements remain unchanged.
+- Future navigation routes/screens, backend systems, monetization beyond the DEC-0078 placements, boosters, rankings, reward economy, meta-missions screens, shops, events, cloud sync, advanced blockers, and special bubbles until their approved phases.
 
 ## Known issues
 
@@ -47,7 +51,7 @@ Phase 19 through Phase 22 cannot receive implementation scope until the project 
 - The gameplay reference visually includes special-looking bubbles and active booster counters. These are visual-direction elements only; advanced blockers/special bubbles and booster effects remain future scope.
 - No codebase, package manifest, tests, or prior documentation existed before Phase 1, so there were no legacy implementation conflicts to evaluate.
 - The project directory is not currently a Git worktree (`git status` reports no Git repository metadata).
-- Phase 15 completed and verified; Phase 16+ remains prohibited pending explicit owner approval.
+- Historical 2026-07-15 status: Phase 15 was complete and Phase 16 was gated. Phase 16 was later approved/completed; Phase 17 is now owner-approved and in progress.
 - Phase 15 targeted correction: board visibility, HUD-safe layout, scale, shooter, next bubble, and trajectory presentation are implemented and awaiting visual review; Phase 16 remains prohibited.
 - Phase 15 targeted density/input correction: curated Levels 1-15 now use substantial authored formations and fixed-origin pointer-capture aiming; visual approval remains pending and Phase 16 remains prohibited.
 - Phase 15 targeted ceiling/topology/presentation correction: one authoritative ceiling rail/surface, organic curated clusters, bridge/drop coverage, no normal impact marker, clearer pointer/trajectory, and game-like HUD hierarchy are implemented; project-owner visual/game-feel approval remains pending and Phase 16 remains prohibited.

@@ -28,6 +28,10 @@ export interface LevelSessionSnapshot {
   readonly starThresholds: StarThresholds
   readonly shotsUsed: number
   readonly shotsRemaining: number
+  readonly bonusShots: number
+  readonly canUseRewardedRescue: boolean
+  readonly colorSwapCharges: number
+  readonly canRefillColorSwap: boolean
   readonly mission: MissionSetProgress
   readonly currentRunScore: number
   readonly lastTurnScore: TurnScoreBreakdown | null
@@ -45,6 +49,10 @@ export class LevelSession {
   private level: NormalizedLevelDefinition
   private levelStatus: LevelStatus = 'ACTIVE'
   private shotsUsed = 0
+  private bonusShots = 0
+  private rewardedRescueUsed = false
+  private colorSwapCharges = 1
+  private colorSwapRefillUsed = false
   private missionProgress: MissionSetProgress
   private missionRuntime: MissionRuntime
   private currentRunScore = 0
@@ -91,7 +99,7 @@ export class LevelSession {
   }
 
   public get shotsRemaining(): number {
-    return Math.max(0, this.level.shotLimit - this.shotsUsed)
+    return Math.max(0, this.level.shotLimit + this.bonusShots - this.shotsUsed)
   }
 
   public get shotsUsedCount(): number {
@@ -107,6 +115,10 @@ export class LevelSession {
       starThresholds: this.level.starThresholds,
       shotsUsed: this.shotsUsed,
       shotsRemaining: this.shotsRemaining,
+      bonusShots: this.bonusShots,
+      canUseRewardedRescue: this.levelStatus === 'LOST' && this.contentInvariant === null && !this.rewardedRescueUsed,
+      colorSwapCharges: this.colorSwapCharges,
+      canRefillColorSwap: this.levelStatus === 'ACTIVE' && this.colorSwapCharges === 0 && !this.colorSwapRefillUsed,
       mission: this.missionProgress,
       currentRunScore: this.currentRunScore,
       lastTurnScore: this.lastTurnScore,
@@ -150,6 +162,30 @@ export class LevelSession {
     return { accepted: true }
   }
 
+  public grantRewardedRescue(extraShots = 5): boolean {
+    if (this.levelStatus !== 'LOST' || this.contentInvariant !== null || this.rewardedRescueUsed || !Number.isInteger(extraShots) || extraShots < 1) return false
+    this.rewardedRescueUsed = true
+    this.bonusShots += extraShots
+    this.levelStatus = evaluateLevelStatus(this.missionProgress, this.shotsRemaining)
+    this.finalScore = null
+    this.earnedStars = 0
+    return this.levelStatus === 'ACTIVE'
+  }
+
+  public swapCurrentAndNextBubble(): boolean {
+    if (this.levelStatus !== 'ACTIVE' || this.colorSwapCharges < 1) return false
+    if (!this.gameplay.swapCurrentAndNext()) return false
+    this.colorSwapCharges -= 1
+    return true
+  }
+
+  public grantColorSwapRefill(): boolean {
+    if (this.levelStatus !== 'ACTIVE' || this.colorSwapCharges !== 0 || this.colorSwapRefillUsed) return false
+    this.colorSwapRefillUsed = true
+    this.colorSwapCharges = 1
+    return true
+  }
+
   public step(elapsedSeconds: number, environment: ProjectileStepEnvironment): SessionStepResult | null {
     if (this.levelStatus !== 'ACTIVE') return null
     const result = this.gameplay.step(elapsedSeconds, environment)
@@ -188,6 +224,10 @@ export class LevelSession {
     this.gameplay = created.gameplay
     this.levelStatus = 'ACTIVE'
     this.shotsUsed = 0
+    this.bonusShots = 0
+    this.rewardedRescueUsed = false
+    this.colorSwapCharges = 1
+    this.colorSwapRefillUsed = false
     this.missionRuntime = createMissionRuntime(nextLevel.mission, this.gameplay.board, nextLevel.startingBubbles.length)
     this.missionProgress = this.missionRuntime.progress
     this.currentRunScore = 0

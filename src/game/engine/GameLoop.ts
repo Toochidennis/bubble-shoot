@@ -7,7 +7,9 @@ export interface FrameScheduler {
 
 export type FrameHandler = (frame: GameFrame) => void
 
-const DEFAULT_MAX_DELTA_MS = 50
+// Swept projectile collision supports long frame intervals. Allow enough catch-up
+// on slower phones to preserve shot speed while still bounding background stalls.
+const DEFAULT_MAX_DELTA_MS = 100
 
 export class GameLoop {
   private state: GameLifecycleState = 'idle'

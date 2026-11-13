@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { GameIcon } from '../components/GameIcon'
 import { gameAudio } from '../game/audio/gameAudio'
-import { getGamePreferences, setReducedMotion } from '../app/preferences'
+import { getGamePreferences, setHighContrastBubbles, setReducedMotion } from '../app/preferences'
 import type { ProgressionRepository } from '../game/progression/ProgressionRepository'
 
 interface SettingsScreenProps {
@@ -20,6 +20,7 @@ export function SettingsScreen({ progression, onBack, onResetProgress }: Setting
   const [musicMuted, setMusicMuted] = useState(gameAudio.isMusicMuted)
   const [volume, setVolume] = useState(gameAudio.masterVolumeValue)
   const [reducedMotion, setReducedMotionState] = useState(getGamePreferences().reducedMotion)
+  const [highContrastBubbles, setHighContrastBubblesState] = useState(getGamePreferences().highContrastBubbles)
   const [confirmReset, setConfirmReset] = useState(false)
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export function SettingsScreen({ progression, onBack, onResetProgress }: Setting
   const toggleMusic = () => { unlockAndPlay(); setMusicMuted(gameAudio.toggleMusicMuted()); if (!gameAudio.isMusicMuted) gameAudio.playMusic('home') }
   const changeVolume = (nextVolume: number) => { gameAudio.setMasterVolume(nextVolume); setVolume(nextVolume) }
   const toggleMotion = () => { unlockAndPlay(); setReducedMotionState(!reducedMotion); setReducedMotion(!reducedMotion) }
+  const toggleContrast = () => { unlockAndPlay(); setHighContrastBubblesState(!highContrastBubbles); setHighContrastBubbles(!highContrastBubbles) }
   const requestReset = () => { unlockAndPlay(); setConfirmReset(true) }
   const cancelReset = () => { unlockAndPlay(); setConfirmReset(false) }
 
@@ -53,6 +55,7 @@ export function SettingsScreen({ progression, onBack, onResetProgress }: Setting
         <section className="settings-section" aria-labelledby="motion-heading">
           <div className="settings-section-heading"><span className="settings-section-icon">✦</span><div><h2 id="motion-heading">Comfort</h2><p>Keep the action comfortable during play.</p></div></div>
           <div className="settings-row"><div><strong>Reduced motion</strong><small>Shorter, calmer visual effects</small></div><SettingToggle checked={reducedMotion} ariaLabel={`Reduced motion ${reducedMotion ? 'on' : 'off'}`} label={reducedMotion ? 'On' : 'Off'} onChange={toggleMotion} /></div>
+          <div className="settings-row"><div><strong>High contrast bubbles</strong><small>Brighter colors and clearer bubble edges</small></div><SettingToggle checked={highContrastBubbles} ariaLabel={`High contrast bubbles ${highContrastBubbles ? 'on' : 'off'}`} label={highContrastBubbles ? 'On' : 'Off'} onChange={toggleContrast} /></div>
         </section>
 
         <section className="settings-section" aria-labelledby="data-heading">

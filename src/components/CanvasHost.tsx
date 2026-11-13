@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type PointerEvent } from 'react'
 
 import { APP_CONFIG } from '../config/appConfig'
 import { GameLoop, createBrowserFrameScheduler } from '../game/engine/GameLoop'
@@ -81,7 +81,13 @@ interface CanvasHostProps {
   readonly progression?: ProgressionRepository
 }
 
-export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, pauseRequested = false, restartRequest = 0, onPauseStateChange, progression }: CanvasHostProps) {
+export interface CanvasHostHandle {
+  grantRewardedRescue(): boolean
+  swapBubbles(): boolean
+  grantColorSwapRefill(): boolean
+}
+
+export const CanvasHost = forwardRef<CanvasHostHandle, CanvasHostProps>(function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, pauseRequested = false, restartRequest = 0, onPauseStateChange, progression }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const effectsCanvasRef = useRef<HTMLCanvasElement>(null)
   const contextRef = useRef<CanvasRenderingContext2D | null>(null)
@@ -105,6 +111,36 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
   const [snapshot, setSnapshot] = useState<ShooterStateSnapshot>(() => new ShooterState({ ...createDefaultShooterConfig(initialViewport), bottomInset: initialGameplayLayout.shooterBottomInset }).snapshot())
   const [sessionSnapshot, setSessionSnapshot] = useState<LevelSessionSnapshot | null>(null)
   const [flightStatus, setFlightStatus] = useState<'ready' | 'active' | `impact:${ImpactType}`>('ready')
+
+  const publishSessionState = useCallback(() => {
+    const nextSnapshot = sessionRef.current.gameplay.shooter.snapshot()
+    const nextSessionSnapshot = sessionRef.current.snapshot()
+    setSnapshot(nextSnapshot)
+    setSessionSnapshot(nextSessionSnapshot)
+    onSessionSnapshot?.(nextSessionSnapshot)
+    renderFrameRef.current?.(nextSnapshot)
+  }, [onSessionSnapshot])
+
+  useImperativeHandle(ref, () => ({
+    grantRewardedRescue: () => {
+      const granted = sessionRef.current.grantRewardedRescue(5)
+      if (granted) {
+        audioStatusRef.current = 'ACTIVE'
+        publishSessionState()
+      }
+      return granted
+    },
+    swapBubbles: () => {
+      const swapped = sessionRef.current.swapCurrentAndNextBubble()
+      if (swapped) publishSessionState()
+      return swapped
+    },
+    grantColorSwapRefill: () => {
+      const granted = sessionRef.current.grantColorSwapRefill()
+      if (granted) publishSessionState()
+      return granted
+    },
+  }), [publishSessionState])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -133,6 +169,7 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
           [],
           {
             visualTheme: getBubbleVisualThemeForLevel(sessionRef.current.activeLevel.id),
+            highContrastBubbles: getGamePreferences().highContrastBubbles,
             terminalProjectile: terminalProjectileRef.current,
             presentation: presentationTimelineRef.current.frame(),
           },
@@ -476,4 +513,4 @@ export function CanvasHost({ initialLevelId = 1, onHome, onSessionSnapshot, paus
       ) : null}
     </figure>
   )
-}
+})

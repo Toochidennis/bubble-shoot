@@ -161,16 +161,16 @@ Only one phase may be in progress at a time. A completed phase requires implemen
 - **Acceptance criteria:** Motion communicates state and depth; gameplay feedback remains readable; reduced motion is respected; ambient work throttles when hidden/paused; input is not blocked beyond engine needs; performance remains within target.
 - **Dependencies:** Phase 15 completed and approved.
 - **Report file:** `docs/implementation/reports/PHASE_16_REPORT.md`
-- **Notes:** Completed on 2026-07-15 after adding the bounded Canvas presentation timeline, deterministic shooter/trail/wall/ceiling/snap/match/floating/star feedback, score count-up, mission pulses, terminal breathing delay, reduced-motion handling, and slow deterministic Home ambient motion. Typecheck, lint, 39 test files/211 tests, production build, and 430x784 Chrome fallback smoke passed. Phase 17 has not started.
+- **Notes:** Completed on 2026-07-15 after adding the bounded Canvas presentation timeline, deterministic shooter/trail/wall/ceiling/snap/match/floating/star feedback, score count-up, mission pulses, terminal breathing delay, reduced-motion handling, and slow deterministic Home ambient motion. Typecheck, lint, 39 test files/211 tests, production build, and 430x784 Chrome fallback smoke passed. The owner accepted the Phase 16 review and approved Phase 17 on 2026-11-13.
 
 ## Phase 17 - QA + first hosted build
 
-- **Status:** `[ ]` Pending
-- **Scope:** Cross-device and mobile-viewport testing, full regression coverage, performance profiling, critical fixes, E2E smoke flow, and deployment candidate preparation.
+- **Status:** `[~]` In Progress; owner-approved 2026-11-13
+- **Scope:** Fix the banner-overlap defect with a host layout-inset contract; add the approved optional rewarded continue and bounded Color Swap refill in Bubble Shooter; improve dim-display contrast and low-end Canvas responsiveness; perform viewport, regression, performance, and hosted-build QA.
 - **Acceptance criteria:** Required unit, deterministic, physics, persistence, build, and E2E checks pass; representative mobile profiling is completed; no known critical gameplay-state issue remains; first-hosted-build exit gate is met.
-- **Dependencies:** Phase 16 completed and approved.
+- **Dependencies:** Phase 16 completed; owner reviewed the screenshot and explicitly approved the Phase 17 work on 2026-11-13.
 - **Report file:** `docs/implementation/reports/PHASE_17_REPORT.md`
-- **Notes:** Hosting/deployment actions require explicit phase approval and appropriate authority.
+- **Notes:** The responsive/gameplay changes and LinkSchool reward bridge are implemented. Existing LinkSchool ad placements remain unchanged. Device/AdMob verification and deployment-candidate preparation remain open; do not mark Phase 17 complete yet.
 
 ## Phase 18 - Senior-dev review gate
 

@@ -1,10 +1,11 @@
 export interface GamePreferences {
   readonly reducedMotion: boolean
+  readonly highContrastBubbles: boolean
 }
 
 const PREFERENCES_KEY = 'bubble-shooter.preferences.v1'
 export const PREFERENCES_CHANGED_EVENT = 'bubble-shooter:preferences-changed'
-const DEFAULT_PREFERENCES: GamePreferences = { reducedMotion: false }
+const DEFAULT_PREFERENCES: GamePreferences = { reducedMotion: false, highContrastBubbles: false }
 
 function readPreferences(): GamePreferences {
   if (typeof window === 'undefined') return DEFAULT_PREFERENCES
@@ -13,8 +14,8 @@ function readPreferences(): GamePreferences {
     if (raw === null) return DEFAULT_PREFERENCES
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return DEFAULT_PREFERENCES
-    const record = parsed as { reducedMotion?: unknown }
-    return { reducedMotion: record.reducedMotion === true }
+    const record = parsed as { reducedMotion?: unknown; highContrastBubbles?: unknown }
+    return { reducedMotion: record.reducedMotion === true, highContrastBubbles: record.highContrastBubbles === true }
   } catch {
     return DEFAULT_PREFERENCES
   }
@@ -34,6 +35,19 @@ export function setReducedMotion(reducedMotion: boolean): GamePreferences {
       window.dispatchEvent(new Event(PREFERENCES_CHANGED_EVENT))
     } catch {
       // Continue with the in-memory preference when storage is unavailable.
+    }
+  }
+  return preferences
+}
+
+export function setHighContrastBubbles(highContrastBubbles: boolean): GamePreferences {
+  preferences = { ...preferences, highContrastBubbles }
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences))
+      window.dispatchEvent(new Event(PREFERENCES_CHANGED_EVENT))
+    } catch {
+      // Keep the preference active for this session when storage is unavailable.
     }
   }
   return preferences
