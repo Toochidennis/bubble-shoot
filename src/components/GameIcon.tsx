@@ -1,4 +1,4 @@
-interface GameIconProps { readonly name: 'home' | 'map' | 'ranking' | 'rewards' | 'settings' | 'user' | 'chevron' | 'back' | 'arrowLeft' | 'play' | 'pause' | 'target' | 'drop' | 'clear' | 'score' | 'swap'; readonly size?: number }
+interface GameIconProps { readonly name: 'home' | 'map' | 'ranking' | 'rewards' | 'settings' | 'user' | 'chevron' | 'back' | 'arrowLeft' | 'play' | 'pause' | 'target' | 'drop' | 'clear' | 'score' | 'swap' | 'video'; readonly size?: number }
 
 export function GameIcon({ name, size = 22 }: GameIconProps) {
   const paths = {
@@ -18,6 +18,7 @@ export function GameIcon({ name, size = 22 }: GameIconProps) {
     clear: <><path d="m5 12 4 4L19 6" /><circle cx="12" cy="12" r="9" /></>,
     score: <><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z" /><path d="M12 9v4M12 16h.01" /></>,
     swap: <><path d="M16 3l4 4-4 4" /><path d="M4 7h16" /><path d="M8 21l-4-4 4-4" /><path d="M20 17H4" /></>,
+    video: <><rect x="3" y="6" width="18" height="15" rx="2" /><path d="m8 6 4 4M15 6l4 4" /><path d="m10 12 5 3-5 3Z" /></>,
   } as const
   return <svg className="game-icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
